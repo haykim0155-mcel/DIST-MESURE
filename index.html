@@ -226,12 +226,11 @@
   </div>
 
   <script>
-    <script>
-    // 対象コース（A-1〜9, B-1〜9 の計18コースに拡張）
-    const courseIds = [
+    // 対象コース（A-1〜9, B-1〜9 の計18コース）
+      const courseIds = [
       'A-1', 'A-2', 'A-3', 'A-4', 'A-5', 'A-6', 'A-7', 'A-8', 'A-9',
       'B-1', 'B-2', 'B-3', 'B-4', 'B-5', 'B-6', 'B-7', 'B-8', 'B-9'
-    ];
+      ];
     
     // データ保持用オブジェクト
     let coursesData = JSON.parse(localStorage.getItem('pg_courses_data')) || {};
