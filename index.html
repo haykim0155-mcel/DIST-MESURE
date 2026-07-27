@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>パークゴルフ距離計測</title>
+  <title>パークゴルフ距離計測＆マップデータ取得</title>
   <style>
     * { box-sizing: border-box; }
     body {
@@ -30,23 +30,23 @@
       padding: 10px 12px;
       border-radius: 8px;
       box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-      gap: 12px;
+      gap: 8px;
     }
     .course-name {
       font-weight: bold;
       font-size: 1.1rem;
-      width: 45px;
+      width: 40px;
       flex-shrink: 0;
     }
-    /* ボタンエリアの間隔をさらに広げました */
     .btn-group {
       display: flex;
-      gap: 12px; /* 8px -> 12px に拡大 */
+      gap: 6px;
       flex-grow: 1;
+      align-items: center;
     }
     button.action-btn {
-      padding: 6px 4px;
-      font-size: 0.8rem;
+      padding: 6px 2px;
+      font-size: 0.78rem;
       border: 1px solid #ccc;
       border-radius: 6px;
       background: #fff;
@@ -62,17 +62,46 @@
       font-weight: bold;
     }
 
-    /* 距離表示エリアに枠と背景色を追加 */
+    /* 中間点クリア用の小さな✕ボタン */
+    .btn-clear-wp {
+      background: #fce8e6;
+      border: 1px solid #fad2cf;
+      color: #c5221f;
+      border-radius: 50%;
+      width: 22px;
+      height: 22px;
+      font-size: 12px;
+      line-height: 20px;
+      padding: 0;
+      cursor: pointer;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* バンカーボタン */
+    button.btn-bunker {
+      background: #fef7e0;
+      border-color: #fbbc04;
+      color: #b06000;
+    }
+    button.btn-bunker.has-data {
+      background: #feefc3;
+      font-weight: bold;
+    }
+
+    /* 距離表示エリア */
     .distance-display {
-      width: 105px;
+      width: 85px;
       text-align: center;
       font-weight: bold;
       font-size: 1.05rem;
       color: #1a73e8;
-      background-color: #e8f0fe; /* 薄い青色背景 */
-      border: 1.5px solid #1a73e8; /* クッキリ見える枠線 */
+      background-color: #e8f0fe;
+      border: 1.5px solid #1a73e8;
       border-radius: 6px;
-      padding: 6px 4px;
+      padding: 6px 2px;
       flex-shrink: 0;
     }
 
@@ -101,7 +130,7 @@
       cursor: pointer;
     }
 
-    /* モーダル（全座標一覧用） */
+    /* モーダル基本スタイル */
     .modal {
       display: none;
       position: fixed;
@@ -137,7 +166,21 @@
     }
     th { background: #f0f0f0; }
 
-    /* モーダル下の機能ボタン群 */
+    /* バンカー計測モーダル用スタイル */
+    .bunker-step {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+      padding: 8px;
+      background: #f8f9fa;
+      border-radius: 6px;
+    }
+    .bunker-step-title {
+      font-size: 0.9rem;
+      font-weight: bold;
+    }
+
     .modal-actions {
       display: flex;
       gap: 6px;
@@ -165,22 +208,13 @@
       flex: 1;
     }
 
-    /* 印刷スタイル設定（モーダルのテーブル部分のみ印刷可能にする） */
     @media print {
       body * { visibility: hidden; }
       .modal, .modal-content, .table-container, table, table * {
         visibility: visible;
       }
-      .modal {
-        position: absolute;
-        left: 0; top: 0;
-        width: 100%; height: auto;
-        background: none;
-      }
-      .modal-content {
-        width: 100%; max-width: 100%;
-        box-shadow: none; border: none; padding: 0;
-      }
+      .modal { position: absolute; left: 0; top: 0; width: 100%; height: auto; background: none; }
+      .modal-content { width: 100%; max-width: 100%; box-shadow: none; border: none; padding: 0; }
       .modal-actions, button { display: none !important; }
     }
   </style>
@@ -196,7 +230,7 @@
     <button class="btn-danger" onclick="resetAllData()">リセット</button>
   </div>
 
-  <!-- モーダルウィンドウ -->
+  <!-- 全座標一覧モーダル -->
   <div class="modal" id="modal">
     <div class="modal-content">
       <h2 style="font-size:1.1rem; margin:0;">取得座標一覧（60進法）</h2>
@@ -214,8 +248,6 @@
           <tbody id="modalTableBody"></tbody>
         </table>
       </div>
-      
-      <!-- 保存・出力用の処理ボタン群 -->
       <div class="modal-actions">
         <button class="btn-success" onclick="downloadCSV()">CSV保存</button>
         <button class="btn-secondary" onclick="printTable()">印刷 / PDF保存</button>
@@ -225,31 +257,50 @@
     </div>
   </div>
 
+  <!-- バンカー計測用モーダル -->
+  <div class="modal" id="bunkerModal">
+    <div class="modal-content">
+      <h2 style="font-size:1.1rem; margin:0 0 12px 0;" id="bunkerModalTitle">バンカー位置の計測</h2>
+      
+      <div id="bunkerStepContainer"></div>
+
+      <div style="margin-top: 10px; text-align: right;">
+        <span id="bunkerCountLabel" style="font-size:0.85rem; font-weight:bold; color:#b06000;"></span>
+      </div>
+
+      <div class="modal-actions" style="margin-top:16px;">
+        <button class="btn-primary" style="background:#fbbc04; color:#333;" onclick="saveCurrentBunkerAndNext()">次のバンカーを追加</button>
+        <button class="btn-secondary" style="background:#80868b;" onclick="closeBunkerModal()">完了して閉じる</button>
+      </div>
+    </div>
+  </div>
+
   <script>
-    // 対象コース（A-1〜9, B-1〜9 の計18コース）
-      const courseIds = [
+    // 対象コース (A-1〜9, B-1〜9)
+    const courseIds = [
       'A-1', 'A-2', 'A-3', 'A-4', 'A-5', 'A-6', 'A-7', 'A-8', 'A-9',
       'B-1', 'B-2', 'B-3', 'B-4', 'B-5', 'B-6', 'B-7', 'B-8', 'B-9'
-      ];
+    ];
     
-    // データ保持用オブジェクト
+    // データ保持用
     let coursesData = JSON.parse(localStorage.getItem('pg_courses_data')) || {};
 
     // 初期化
     courseIds.forEach(id => {
       if (!coursesData[id]) {
-        coursesData[id] = { tee: null, waypoints: [], cup: null };
+        coursesData[id] = { tee: null, waypoints: [], cup: null, bunkers: [] };
+      } else if (!coursesData[id].bunkers) {
+        coursesData[id].bunkers = [];
       }
     });
 
-    // 10進法から60進法(DMS)への変換関数
+    // 10進法から60進法(DMS)への変換
     function toDMS(deg, isLat) {
       const absolute = Math.abs(deg);
       const degrees = Math.floor(absolute);
       const minutesNotTruncated = (absolute - degrees) * 60;
       const minutes = Math.floor(minutesNotTruncated);
       const seconds = ((minutesNotTruncated - minutes) * 60).toFixed(1);
-
       let direction = isLat ? (deg >= 0 ? "N" : "S") : (deg >= 0 ? "E" : "W");
       return `${degrees}°${minutes}'${seconds}"${direction}`;
     }
@@ -263,7 +314,7 @@
       return Math.sqrt(dx * dx + dy * dy);
     }
 
-    // コースの総距離計算
+    // 総距離計算
     function calculateTotalDistance(course) {
       const points = [];
       if (course.tee) points.push(course.tee);
@@ -279,45 +330,55 @@
       return Math.round(total);
     }
 
-    // 保存と描画
     function saveData() {
       localStorage.setItem('pg_courses_data', JSON.stringify(coursesData));
       render();
     }
 
-    // GPS位置情報の取得
-    function captureLocation(courseId, type) {
-      if (!navigator.geolocation) {
-        alert("お使いの端末・ブラウザはGPSに対応していません。");
-        return;
-      }
-
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          const point = {
-            lat: pos.coords.latitude,
-            lng: pos.coords.longitude,
-            acc: Math.round(pos.coords.accuracy * 10) / 10
-          };
-
-          if (type === 'tee') {
-            coursesData[courseId].tee = point;
-          } else if (type === 'cup') {
-            coursesData[courseId].cup = point;
-          } else if (type === 'waypoint') {
-            coursesData[courseId].waypoints.push(point);
-          }
-
-          saveData();
-        },
-        (err) => {
-          alert("位置情報の取得に失敗しました: " + err.message);
-        },
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-      );
+    // GPS取得の共通関数
+    function getCurrentLocationPromise() {
+      return new Promise((resolve, reject) => {
+        if (!navigator.geolocation) {
+          reject("GPS非対応");
+          return;
+        }
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            resolve({
+              lat: pos.coords.latitude,
+              lng: pos.coords.longitude,
+              acc: Math.round(pos.coords.accuracy * 10) / 10
+            });
+          },
+          (err) => reject(err.message),
+          { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+        );
+      });
     }
 
-    // UIの描画
+    // 画面位置記録（TEE, CUP, 中間点）
+    async function captureLocation(courseId, type) {
+      try {
+        const point = await getCurrentLocationPromise();
+        if (type === 'tee') coursesData[courseId].tee = point;
+        else if (type === 'cup') coursesData[courseId].cup = point;
+        else if (type === 'waypoint') coursesData[courseId].waypoints.push(point);
+        saveData();
+      } catch (err) {
+        alert("位置情報の取得に失敗しました: " + err);
+      }
+    }
+
+    // 中間点のクリア機能
+    function clearWaypoints(courseId, e) {
+      e.stopPropagation(); // ボタンクリックの伝播防止
+      if (confirm(`${courseId} の中間点をすべてクリアしますか？`)) {
+        coursesData[courseId].waypoints = [];
+        saveData();
+      }
+    }
+
+    // UI描画
     function render() {
       const container = document.getElementById('courseList');
       container.innerHTML = '';
@@ -331,6 +392,9 @@
 
         const wpCount = c.waypoints.length;
         const wpLabel = wpCount > 0 ? `+中間(${wpCount})` : '+中間';
+        const bunkerCount = c.bunkers ? c.bunkers.length : 0;
+        const bunkerClass = bunkerCount > 0 ? 'btn-bunker has-data' : 'btn-bunker';
+        const bunkerLabel = bunkerCount > 0 ? `バンカー(${bunkerCount})` : '+バンカー';
 
         row.innerHTML = `
           <div class="course-name">${id}</div>
@@ -341,8 +405,12 @@
             <button class="action-btn ${wpCount > 0 ? 'done' : ''}" onclick="captureLocation('${id}', 'waypoint')">
               ${wpLabel}
             </button>
+            ${wpCount > 0 ? `<button class="btn-clear-wp" title="中間点をクリア" onclick="clearWaypoints('${id}', event)">✕</button>` : ''}
             <button class="action-btn ${c.cup ? 'done' : ''}" onclick="captureLocation('${id}', 'cup')">
               ${c.cup ? 'CUP済' : 'CUP'}
+            </button>
+            <button class="action-btn ${bunkerClass}" onclick="openBunkerModal('${id}')">
+              ${bunkerLabel}
             </button>
           </div>
           <div class="distance-display">
@@ -353,7 +421,77 @@
       });
     }
 
-    // モーダル表示制御（60進法対応）
+    /* ---- バンカー取得モーダル制御 ---- */
+    let currentBunkerCourseId = null;
+    let tempBunker = { center: null, longEdge: null, shortEdge: null };
+
+    function openBunkerModal(courseId) {
+      currentBunkerCourseId = courseId;
+      tempBunker = { center: null, longEdge: null, shortEdge: null };
+      renderBunkerModal();
+      document.getElementById('bunkerModal').style.display = 'flex';
+    }
+
+    function closeBunkerModal() {
+      // 途中の物があれば保存して終了
+      if (tempBunker.center || tempBunker.longEdge || tempBunker.shortEdge) {
+        coursesData[currentBunkerCourseId].bunkers.push(tempBunker);
+        saveData();
+      }
+      document.getElementById('bunkerModal').style.display = 'none';
+    }
+
+    function renderBunkerModal() {
+      const container = document.getElementById('bunkerStepContainer');
+      document.getElementById('bunkerModalTitle').innerText = `${currentBunkerCourseId} バンカー計測`;
+
+      const existingCount = coursesData[currentBunkerCourseId].bunkers.length;
+      document.getElementById('bunkerCountLabel').innerText = `登録済みバンカー: ${existingCount} 個`;
+
+      const steps = [
+        { key: 'center', label: '1. 中心点' },
+        { key: 'longEdge', label: '2. 長辺の端' },
+        { key: 'shortEdge', label: '3. 短辺の端' }
+      ];
+
+      container.innerHTML = '';
+      steps.forEach(step => {
+        const pt = tempBunker[step.key];
+        const div = document.createElement('div');
+        div.className = 'bunker-step';
+        div.innerHTML = `
+          <div class="bunker-step-title">${step.label}</div>
+          <button class="action-btn ${pt ? 'done' : ''}" style="flex: initial; width: 110px;" onclick="captureBunkerPoint('${step.key}')">
+            ${pt ? '取得済み' : '位置を取得'}
+          </button>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    async function captureBunkerPoint(stepKey) {
+      try {
+        const pt = await getCurrentLocationPromise();
+        tempBunker[stepKey] = pt;
+        renderBunkerModal();
+      } catch (err) {
+        alert("位置情報の取得に失敗しました: " + err);
+      }
+    }
+
+    function saveCurrentBunkerAndNext() {
+      if (!tempBunker.center) {
+        alert("中心点が取得されていません");
+        return;
+      }
+      coursesData[currentBunkerCourseId].bunkers.push(tempBunker);
+      saveData();
+      // 次のバンカー入力へリセット
+      tempBunker = { center: null, longEdge: null, shortEdge: null };
+      renderBunkerModal();
+    }
+
+    /* ---- 全座標一覧（モーダル＆CSV対応） ---- */
     function openModal() {
       const tbody = document.getElementById('modalTableBody');
       tbody.innerHTML = '';
@@ -376,6 +514,15 @@
         addRow('TEE', c.tee);
         c.waypoints.forEach((wp, idx) => addRow(`中間${idx + 1}`, wp));
         addRow('CUP', c.cup);
+        
+        // バンカーの座標も一覧に追加
+        if (c.bunkers) {
+          c.bunkers.forEach((b, bIdx) => {
+            addRow(`バンカー${bIdx + 1}(中心)`, b.center);
+            addRow(`バンカー${bIdx + 1}(長辺)`, b.longEdge);
+            addRow(`バンカー${bIdx + 1}(短辺)`, b.shortEdge);
+          });
+        }
       });
 
       document.getElementById('modal').style.display = 'flex';
@@ -385,10 +532,8 @@
       document.getElementById('modal').style.display = 'none';
     }
 
-    // CSVファイルのダウンロード処理
     function downloadCSV() {
       let csvStr = "\uFEFFコース,種別,緯度(DMS),経度(DMS),精度\n";
-      
       courseIds.forEach(id => {
         const c = coursesData[id];
         const appendCSVRow = (typeLabel, pt) => {
@@ -398,6 +543,13 @@
         appendCSVRow('TEE', c.tee);
         c.waypoints.forEach((wp, idx) => appendCSVRow(`中間${idx + 1}`, wp));
         appendCSVRow('CUP', c.cup);
+        if (c.bunkers) {
+          c.bunkers.forEach((b, bIdx) => {
+            appendCSVRow(`バンカー${bIdx + 1}(中心)`, b.center);
+            appendCSVRow(`バンカー${bIdx + 1}(長辺)`, b.longEdge);
+            appendCSVRow(`バンカー${bIdx + 1}(短辺)`, b.shortEdge);
+          });
+        }
       });
 
       const blob = new Blob([csvStr], { type: 'text/csv;charset=utf-8;' });
@@ -407,12 +559,8 @@
       link.click();
     }
 
-    // 印刷・PDF出力呼び出し
-    function printTable() {
-      window.print();
-    }
+    function printTable() { window.print(); }
 
-    // クリックボードにコピー
     function copyTableText() {
       let text = "コース\t種別\t緯度(DMS)\t経度(DMS)\t精度\n";
       courseIds.forEach(id => {
@@ -424,12 +572,17 @@
         appendTextRow('TEE', c.tee);
         c.waypoints.forEach((wp, idx) => appendTextRow(`中間${idx + 1}`, wp));
         appendTextRow('CUP', c.cup);
+        if (c.bunkers) {
+          c.bunkers.forEach((b, bIdx) => {
+            appendTextRow(`バンカー${bIdx + 1}(中心)`, b.center);
+            appendTextRow(`バンカー${bIdx + 1}(長辺)`, b.longEdge);
+            appendTextRow(`バンカー${bIdx + 1}(短辺)`, b.shortEdge);
+          });
+        }
       });
 
       navigator.clipboard.writeText(text).then(() => {
-        alert("座標一覧データをクリップボードにコピーしました！");
-      }).catch(err => {
-        alert("コピーに失敗しました: " + err);
+        alert("座標一覧データをコピーしました！");
       });
     }
 
@@ -437,13 +590,12 @@
       if (confirm("すべての計測データをクリアしますか？")) {
         localStorage.removeItem('pg_courses_data');
         courseIds.forEach(id => {
-          coursesData[id] = { tee: null, waypoints: [], cup: null };
+          coursesData[id] = { tee: null, waypoints: [], cup: null, bunkers: [] };
         });
         render();
       }
     }
 
-    // 初回描画
     render();
   </script>
 </body>
