@@ -378,7 +378,7 @@
       }
     }
 
-    // UI描画
+// UI描画
     function render() {
       const container = document.getElementById('courseList');
       container.innerHTML = '';
@@ -392,9 +392,11 @@
 
         const wpCount = c.waypoints.length;
         const wpLabel = wpCount > 0 ? `+中間(${wpCount})` : '+中間';
+        
+        // バンカー表記を「BK」に変更
         const bunkerCount = c.bunkers ? c.bunkers.length : 0;
         const bunkerClass = bunkerCount > 0 ? 'btn-bunker has-data' : 'btn-bunker';
-        const bunkerLabel = bunkerCount > 0 ? `バンカー(${bunkerCount})` : '+バンカー';
+        const bunkerLabel = bunkerCount > 0 ? `BK(${bunkerCount})` : '+BK';
 
         row.innerHTML = `
           <div class="course-name">${id}</div>
@@ -412,6 +414,7 @@
             <button class="action-btn ${bunkerClass}" onclick="openBunkerModal('${id}')">
               ${bunkerLabel}
             </button>
+            ${bunkerCount > 0 ? `<button class="btn-clear-wp" title="BKをクリア" onclick="clearBunkers('${id}', event)">✕</button>` : ''}
           </div>
           <div class="distance-display">
             ${dist !== null ? dist + ' m' : '---'}
@@ -419,6 +422,15 @@
         `;
         container.appendChild(row);
       });
+    }
+
+    // バンカーデータのクリア機能（新規追加）
+    function clearBunkers(courseId, e) {
+      e.stopPropagation();
+      if (confirm(`${courseId} のバンカー(BK)データをすべてクリアしますか？`)) {
+        coursesData[courseId].bunkers = [];
+        saveData();
+      }
     }
 
     /* ---- バンカー取得モーダル制御 ---- */
