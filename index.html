@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>パークゴルフ距離計測＆マップデータ取得</title>
+  <title>パークゴルフ データ収集＆計測</title>
   <style>
     * { box-sizing: border-box; }
     body {
@@ -14,39 +14,71 @@
       color: #333;
     }
     h1 {
-      font-size: 1.2rem;
-      margin: 0 0 12px 0;
+      font-size: 1.1rem;
+      margin: 0 0 10px 0;
       text-align: center;
     }
+    
+    /* ゴルフ場名入力エリア */
+    .park-name-container {
+      background: white;
+      padding: 10px 12px;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .park-name-container label {
+      font-weight: bold;
+      font-size: 0.9rem;
+      white-space: nowrap;
+    }
+    .park-name-container input {
+      flex: 1;
+      padding: 8px;
+      font-size: 0.95rem;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+    }
+
     .course-list {
       display: flex;
       flex-direction: column;
       gap: 10px;
     }
-    .course-row {
-      display: flex;
-      align-items: center;
+    .course-card {
       background: white;
       padding: 10px 12px;
       border-radius: 8px;
       box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      display: flex;
+      flex-direction: column;
       gap: 8px;
+    }
+
+    /* 1行目: GPSボタン & 計測距離 */
+    .row-main {
+      display: flex;
+      align-items: center;
+      gap: 6px;
     }
     .course-name {
       font-weight: bold;
       font-size: 1.1rem;
-      width: 40px;
+      width: 36px;
       flex-shrink: 0;
     }
     .btn-group {
       display: flex;
-      gap: 6px;
+      gap: 4px;
       flex-grow: 1;
       align-items: center;
     }
     button.action-btn {
       padding: 6px 2px;
-      font-size: 0.78rem;
+      font-size: 0.75rem;
       border: 1px solid #ccc;
       border-radius: 6px;
       background: #fff;
@@ -61,17 +93,14 @@
       color: #137333;
       font-weight: bold;
     }
-
-    /* 中間点クリア用の小さな✕ボタン */
     .btn-clear-wp {
       background: #fce8e6;
       border: 1px solid #fad2cf;
       color: #c5221f;
       border-radius: 50%;
-      width: 22px;
-      height: 22px;
-      font-size: 12px;
-      line-height: 20px;
+      width: 20px;
+      height: 20px;
+      font-size: 11px;
       padding: 0;
       cursor: pointer;
       flex-shrink: 0;
@@ -79,30 +108,62 @@
       align-items: center;
       justify-content: center;
     }
+    button.btn-bunker { background: #fef7e0; border-color: #fbbc04; color: #b06000; }
+    button.btn-bunker.has-data { background: #feefc3; font-weight: bold; }
 
-    /* バンカーボタン */
-    button.btn-bunker {
-      background: #fef7e0;
-      border-color: #fbbc04;
-      color: #b06000;
-    }
-    button.btn-bunker.has-data {
-      background: #feefc3;
-      font-weight: bold;
-    }
-
-    /* 距離表示エリア */
     .distance-display {
-      width: 85px;
+      width: 75px;
       text-align: center;
       font-weight: bold;
-      font-size: 1.05rem;
+      font-size: 0.95rem;
       color: #1a73e8;
       background-color: #e8f0fe;
       border: 1.5px solid #1a73e8;
       border-radius: 6px;
-      padding: 6px 2px;
+      padding: 4px 2px;
       flex-shrink: 0;
+    }
+
+    /* 2行目: 看板距離 & Par選択 */
+    .row-sub {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: #fafafa;
+      padding: 6px 8px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+    }
+    .sub-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .sub-item input[type="number"] {
+      width: 55px;
+      padding: 4px;
+      font-size: 0.9rem;
+      text-align: center;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    .par-selector {
+      display: flex;
+      gap: 3px;
+    }
+    .par-btn {
+      padding: 3px 8px;
+      border: 1px solid #ccc;
+      background: white;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.8rem;
+    }
+    .par-btn.active {
+      background: #1a73e8;
+      color: white;
+      border-color: #1a73e8;
+      font-weight: bold;
     }
 
     .bottom-actions {
@@ -110,109 +171,24 @@
       display: flex;
       gap: 8px;
     }
-    .btn-primary {
-      background: #1a73e8;
-      color: white;
-      border: none;
-      font-weight: bold;
-      padding: 12px;
-      border-radius: 6px;
-      flex: 1;
-      cursor: pointer;
-    }
-    .btn-danger {
-      background: #dc3545;
-      color: white;
-      border: none;
-      padding: 12px;
-      border-radius: 6px;
-      flex: 0.35;
-      cursor: pointer;
-    }
+    .btn-primary { background: #1a73e8; color: white; border: none; font-weight: bold; padding: 12px; border-radius: 6px; flex: 1; cursor: pointer; }
+    .btn-danger { background: #dc3545; color: white; border: none; padding: 12px; border-radius: 6px; flex: 0.35; cursor: pointer; }
 
-    /* モーダル基本スタイル */
-    .modal {
-      display: none;
-      position: fixed;
-      top: 0; left: 0; width: 100%; height: 100%;
-      background: rgba(0,0,0,0.5);
-      justify-content: center;
-      align-items: center;
-      z-index: 100;
-    }
-    .modal-content {
-      background: white;
-      width: 95%;
-      max-width: 650px;
-      max-height: 85vh;
-      border-radius: 12px;
-      padding: 16px;
-      display: flex;
-      flex-direction: column;
-    }
-    .table-container {
-      overflow-y: auto;
-      margin: 12px 0;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 0.8rem;
-    }
-    th, td {
-      border: 1px solid #ddd;
-      padding: 6px 4px;
-      text-align: left;
-    }
+    /* モーダル表示 */
+    .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 100; }
+    .modal-content { background: white; width: 95%; max-width: 650px; max-height: 85vh; border-radius: 12px; padding: 16px; display: flex; flex-direction: column; }
+    .table-container { overflow-y: auto; margin: 12px 0; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+    th, td { border: 1px solid #ddd; padding: 6px 4px; text-align: left; }
     th { background: #f0f0f0; }
-
-    /* バンカー計測モーダル用スタイル */
-    .bunker-step {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 10px;
-      padding: 8px;
-      background: #f8f9fa;
-      border-radius: 6px;
-    }
-    .bunker-step-title {
-      font-size: 0.9rem;
-      font-weight: bold;
-    }
-
-    .modal-actions {
-      display: flex;
-      gap: 6px;
-      margin-top: 8px;
-      flex-wrap: wrap;
-    }
-    .btn-secondary {
-      background: #5f6368;
-      color: white;
-      border: none;
-      padding: 8px 12px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 0.85rem;
-      flex: 1;
-    }
-    .btn-success {
-      background: #188038;
-      color: white;
-      border: none;
-      padding: 8px 12px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 0.85rem;
-      flex: 1;
-    }
+    .bunker-step { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; padding: 8px; background: #f8f9fa; border-radius: 6px; }
+    .modal-actions { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+    .btn-secondary { background: #5f6368; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; flex: 1; }
+    .btn-success { background: #188038; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; flex: 1; }
 
     @media print {
       body * { visibility: hidden; }
-      .modal, .modal-content, .table-container, table, table * {
-        visibility: visible;
-      }
+      .modal, .modal-content, .table-container, table, table * { visibility: visible; }
       .modal { position: absolute; left: 0; top: 0; width: 100%; height: auto; background: none; }
       .modal-content { width: 100%; max-width: 100%; box-shadow: none; border: none; padding: 0; }
       .modal-actions, button { display: none !important; }
@@ -221,24 +197,33 @@
 </head>
 <body>
 
-  <h1>パークゴルフ距離計測</h1>
+  <h1>パークゴルフ データ収集＆計測</h1>
+
+  <!-- ゴルフ場名入力エリア -->
+  <div class="park-name-container">
+    <label for="parkName">ゴルフ場名:</label>
+    <input type="text" id="parkName" placeholder="例: 帯広の森運動公園PG" onchange="saveParkName()" />
+  </div>
 
   <div class="course-list" id="courseList"></div>
 
   <div class="bottom-actions">
-    <button class="btn-primary" onclick="openModal()">全座標一覧を表示</button>
+    <button class="btn-primary" onclick="openModal()">全データ一覧を表示</button>
     <button class="btn-danger" onclick="resetAllData()">リセット</button>
   </div>
 
   <!-- 全座標一覧モーダル -->
   <div class="modal" id="modal">
     <div class="modal-content">
-      <h2 style="font-size:1.1rem; margin:0;">取得座標一覧（60進法）</h2>
+      <h2 style="font-size:1.1rem; margin:0;" id="modalTitle">取得データ一覧</h2>
       <div class="table-container">
         <table id="coordTable">
           <thead>
             <tr>
               <th>コース</th>
+              <th>Par</th>
+              <th>看板距離</th>
+              <th>計測距離</th>
               <th>種別</th>
               <th>緯度 (DMS)</th>
               <th>経度 (DMS)</th>
@@ -257,17 +242,14 @@
     </div>
   </div>
 
-  <!-- バンカー計測用モーダル -->
+  <!-- バンカー計測モーダル -->
   <div class="modal" id="bunkerModal">
     <div class="modal-content">
       <h2 style="font-size:1.1rem; margin:0 0 12px 0;" id="bunkerModalTitle">バンカー位置の計測</h2>
-      
       <div id="bunkerStepContainer"></div>
-
       <div style="margin-top: 10px; text-align: right;">
         <span id="bunkerCountLabel" style="font-size:0.85rem; font-weight:bold; color:#b06000;"></span>
       </div>
-
       <div class="modal-actions" style="margin-top:16px;">
         <button class="btn-primary" style="background:#fbbc04; color:#333;" onclick="saveCurrentBunkerAndNext()">次のバンカーを追加</button>
         <button class="btn-secondary" style="background:#80868b;" onclick="closeBunkerModal()">完了して閉じる</button>
@@ -276,7 +258,7 @@
   </div>
 
   <script>
-    // 対象コース (A-1〜9, B-1〜9, C-1〜9, D-1〜9 の全36ホール対応)
+    // 対象コース (A〜D の 36ホール)
     const courseIds = [
       'A-1', 'A-2', 'A-3', 'A-4', 'A-5', 'A-6', 'A-7', 'A-8', 'A-9',
       'B-1', 'B-2', 'B-3', 'B-4', 'B-5', 'B-6', 'B-7', 'B-8', 'B-9',
@@ -284,19 +266,50 @@
       'D-1', 'D-2', 'D-3', 'D-4', 'D-5', 'D-6', 'D-7', 'D-8', 'D-9'
     ];
     
-    // データ保持用
+    let parkName = localStorage.getItem('pg_park_name') || '';
     let coursesData = JSON.parse(localStorage.getItem('pg_courses_data')) || {};
 
-    // 初期化
+    // ゴルフ場名の初期表示
+    document.getElementById('parkName').value = parkName;
+
+    // データ構造の初期化 (デフォルトParは 3)
     courseIds.forEach(id => {
       if (!coursesData[id]) {
-        coursesData[id] = { tee: null, waypoints: [], cup: null, bunkers: [] };
-      } else if (!coursesData[id].bunkers) {
-        coursesData[id].bunkers = [];
+        coursesData[id] = { par: 3, officialDist: '', tee: null, waypoints: [], cup: null, bunkers: [] };
+      } else {
+        if (coursesData[id].par === undefined) coursesData[id].par = 3;
+        if (coursesData[id].officialDist === undefined) coursesData[id].officialDist = '';
+        if (!coursesData[id].bunkers) coursesData[id].bunkers = [];
       }
     });
 
-    // 10進法から60進法(DMS)への変換
+    function saveParkName() {
+      parkName = document.getElementById('parkName').value;
+      localStorage.setItem('pg_park_name', parkName);
+    }
+
+    function updatePar(courseId, val) {
+      coursesData[courseId].par = parseInt(val, 10);
+      saveData();
+    }
+
+    function promptCustomPar(courseId) {
+      const current = coursesData[courseId].par;
+      const input = prompt(`${courseId} のPar（規定打数）を入力してください (1〜7):`, current);
+      if (input !== null) {
+        const num = parseInt(input, 10);
+        if (!isNaN(num) && num >= 1 && num <= 7) {
+          updatePar(courseId, num);
+        }
+      }
+    }
+
+    function updateOfficialDist(courseId, val) {
+      coursesData[courseId].officialDist = val;
+      saveData();
+    }
+
+    // 10進法 -> 60進法(DMS) 変換
     function toDMS(deg, isLat) {
       const absolute = Math.abs(deg);
       const degrees = Math.floor(absolute);
@@ -316,13 +329,11 @@
       return Math.sqrt(dx * dx + dy * dy);
     }
 
-    // 総距離計算
     function calculateTotalDistance(course) {
       const points = [];
       if (course.tee) points.push(course.tee);
       points.push(...course.waypoints);
       if (course.cup) points.push(course.cup);
-
       if (points.length < 2) return null;
 
       let total = 0;
@@ -337,7 +348,6 @@
       render();
     }
 
-    // GPS取得の共通関数
     function getCurrentLocationPromise() {
       return new Promise((resolve, reject) => {
         if (!navigator.geolocation) {
@@ -358,7 +368,6 @@
       });
     }
 
-    // 画面位置記録（TEE, CUP, 中間点）
     async function captureLocation(courseId, type) {
       try {
         const point = await getCurrentLocationPromise();
@@ -371,16 +380,23 @@
       }
     }
 
-    // 中間点のクリア機能
     function clearWaypoints(courseId, e) {
-      e.stopPropagation(); // ボタンクリックの伝播防止
+      e.stopPropagation();
       if (confirm(`${courseId} の中間点をすべてクリアしますか？`)) {
         coursesData[courseId].waypoints = [];
         saveData();
       }
     }
 
-// UI描画
+    function clearBunkers(courseId, e) {
+      e.stopPropagation();
+      if (confirm(`${courseId} のバンカー(BK)をすべてクリアしますか？`)) {
+        coursesData[courseId].bunkers = [];
+        saveData();
+      }
+    }
+
+    // UI描画
     function render() {
       const container = document.getElementById('courseList');
       container.innerHTML = '';
@@ -389,53 +405,70 @@
         const c = coursesData[id];
         const dist = calculateTotalDistance(c);
 
-        const row = document.createElement('div');
-        row.className = 'course-row';
+        const card = document.createElement('div');
+        card.className = 'course-card';
 
         const wpCount = c.waypoints.length;
         const wpLabel = wpCount > 0 ? `+中間(${wpCount})` : '+中間';
-        
-        // バンカー表記を「BK」に変更
         const bunkerCount = c.bunkers ? c.bunkers.length : 0;
         const bunkerClass = bunkerCount > 0 ? 'btn-bunker has-data' : 'btn-bunker';
         const bunkerLabel = bunkerCount > 0 ? `BK(${bunkerCount})` : '+BK';
 
-        row.innerHTML = `
-          <div class="course-name">${id}</div>
-          <div class="btn-group">
-            <button class="action-btn ${c.tee ? 'done' : ''}" onclick="captureLocation('${id}', 'tee')">
-              ${c.tee ? 'TEE済' : 'TEE'}
-            </button>
-            <button class="action-btn ${wpCount > 0 ? 'done' : ''}" onclick="captureLocation('${id}', 'waypoint')">
-              ${wpLabel}
-            </button>
-            ${wpCount > 0 ? `<button class="btn-clear-wp" title="中間点をクリア" onclick="clearWaypoints('${id}', event)">✕</button>` : ''}
-            <button class="action-btn ${c.cup ? 'done' : ''}" onclick="captureLocation('${id}', 'cup')">
-              ${c.cup ? 'CUP済' : 'CUP'}
-            </button>
-            <button class="action-btn ${bunkerClass}" onclick="openBunkerModal('${id}')">
-              ${bunkerLabel}
-            </button>
-            ${bunkerCount > 0 ? `<button class="btn-clear-wp" title="BKをクリア" onclick="clearBunkers('${id}', event)">✕</button>` : ''}
+        // Parボタンの生成
+        const isPar3 = c.par === 3 ? 'active' : '';
+        const isPar4 = c.par === 4 ? 'active' : '';
+        const isPar5 = c.par === 5 ? 'active' : '';
+        const isOther = (c.par !== 3 && c.par !== 4 && c.par !== 5) ? `active` : '';
+        const otherLabel = (c.par !== 3 && c.par !== 4 && c.par !== 5) ? `Par ${c.par}` : '他';
+
+        card.innerHTML = `
+          <!-- 1行目: GPSボタン & 計測距離 -->
+          <div class="row-main">
+            <div class="course-name">${id}</div>
+            <div class="btn-group">
+              <button class="action-btn ${c.tee ? 'done' : ''}" onclick="captureLocation('${id}', 'tee')">
+                ${c.tee ? 'TEE済' : 'TEE'}
+              </button>
+              <button class="action-btn ${wpCount > 0 ? 'done' : ''}" onclick="captureLocation('${id}', 'waypoint')">
+                ${wpLabel}
+              </button>
+              ${wpCount > 0 ? `<button class="btn-clear-wp" title="中間点クリア" onclick="clearWaypoints('${id}', event)">✕</button>` : ''}
+              <button class="action-btn ${c.cup ? 'done' : ''}" onclick="captureLocation('${id}', 'cup')">
+                ${c.cup ? 'CUP済' : 'CUP'}
+              </button>
+              <button class="action-btn ${bunkerClass}" onclick="openBunkerModal('${id}')">
+                ${bunkerLabel}
+              </button>
+              ${bunkerCount > 0 ? `<button class="btn-clear-wp" title="BKクリア" onclick="clearBunkers('${id}', event)">✕</button>` : ''}
+            </div>
+            <div class="distance-display">
+              ${dist !== null ? dist + ' m' : '---'}
+            </div>
           </div>
-          <div class="distance-display">
-            ${dist !== null ? dist + ' m' : '---'}
+
+          <!-- 2行目: 看板距離 & Par選択 -->
+          <div class="row-sub">
+            <div class="sub-item">
+              <span>看板距離:</span>
+              <input type="number" placeholder="m" value="${c.officialDist}" onchange="updateOfficialDist('${id}', this.value)" />
+              <span>m</span>
+            </div>
+            <div class="sub-item" style="margin-left: auto;">
+              <span>Par:</span>
+              <div class="par-selector">
+                <button class="par-btn ${isPar3}" onclick="updatePar('${id}', 3)">3</button>
+                <button class="par-btn ${isPar4}" onclick="updatePar('${id}', 4)">4</button>
+                <button class="par-btn ${isPar5}" onclick="updatePar('${id}', 5)">5</button>
+                <button class="par-btn ${isOther}" onclick="promptCustomPar('${id}')">${otherLabel}</button>
+              </div>
+            </div>
           </div>
         `;
-        container.appendChild(row);
+        container.appendChild(card);
       });
     }
 
-    // バンカーデータのクリア機能（新規追加）
-    function clearBunkers(courseId, e) {
-      e.stopPropagation();
-      if (confirm(`${courseId} のバンカー(BK)データをすべてクリアしますか？`)) {
-        coursesData[courseId].bunkers = [];
-        saveData();
-      }
-    }
-
-    /* ---- バンカー取得モーダル制御 ---- */
+    /* バンカー計測モーダル */
     let currentBunkerCourseId = null;
     let tempBunker = { center: null, longEdge: null, shortEdge: null };
 
@@ -447,7 +480,6 @@
     }
 
     function closeBunkerModal() {
-      // 途中の物があれば保存して終了
       if (tempBunker.center || tempBunker.longEdge || tempBunker.shortEdge) {
         coursesData[currentBunkerCourseId].bunkers.push(tempBunker);
         saveData();
@@ -458,7 +490,6 @@
     function renderBunkerModal() {
       const container = document.getElementById('bunkerStepContainer');
       document.getElementById('bunkerModalTitle').innerText = `${currentBunkerCourseId} バンカー計測`;
-
       const existingCount = coursesData[currentBunkerCourseId].bunkers.length;
       document.getElementById('bunkerCountLabel').innerText = `登録済みバンカー: ${existingCount} 個`;
 
@@ -500,23 +531,30 @@
       }
       coursesData[currentBunkerCourseId].bunkers.push(tempBunker);
       saveData();
-      // 次のバンカー入力へリセット
       tempBunker = { center: null, longEdge: null, shortEdge: null };
       renderBunkerModal();
     }
 
-    /* ---- 全座標一覧（モーダル＆CSV対応） ---- */
+    /* 一覧＆CSV保存機能 */
     function openModal() {
       const tbody = document.getElementById('modalTableBody');
       tbody.innerHTML = '';
+      document.getElementById('modalTitle').innerText = parkName ? `${parkName} データ一覧` : '取得データ一覧';
 
       courseIds.forEach(id => {
         const c = coursesData[id];
+        const calculatedDist = calculateTotalDistance(c);
+        const distStr = calculatedDist !== null ? `${calculatedDist}m` : '-';
+        const officialStr = c.officialDist ? `${c.officialDist}m` : '-';
+
         const addRow = (typeLabel, pt) => {
           if (!pt) return;
           const tr = document.createElement('tr');
           tr.innerHTML = `
             <td>${id}</td>
+            <td>Par${c.par}</td>
+            <td>${officialStr}</td>
+            <td>${distStr}</td>
             <td>${typeLabel}</td>
             <td>${toDMS(pt.lat, true)}</td>
             <td>${toDMS(pt.lng, false)}</td>
@@ -528,13 +566,11 @@
         addRow('TEE', c.tee);
         c.waypoints.forEach((wp, idx) => addRow(`中間${idx + 1}`, wp));
         addRow('CUP', c.cup);
-        
-        // バンカーの座標も一覧に追加
         if (c.bunkers) {
           c.bunkers.forEach((b, bIdx) => {
-            addRow(`バンカー${bIdx + 1}(中心)`, b.center);
-            addRow(`バンカー${bIdx + 1}(長辺)`, b.longEdge);
-            addRow(`バンカー${bIdx + 1}(短辺)`, b.shortEdge);
+            addRow(`BK${bIdx + 1}(中心)`, b.center);
+            addRow(`BK${bIdx + 1}(長辺)`, b.longEdge);
+            addRow(`BK${bIdx + 1}(短辺)`, b.shortEdge);
           });
         }
       });
@@ -547,21 +583,27 @@
     }
 
     function downloadCSV() {
-      let csvStr = "\uFEFFコース,種別,緯度(DMS),経度(DMS),精度\n";
+      let csvStr = "\uFEFFゴルフ場名,コース,Par,看板距離(m),計測距離(m),種別,緯度(DMS),経度(DMS),精度\n";
+      const name = parkName || '未設定';
+
       courseIds.forEach(id => {
         const c = coursesData[id];
+        const calculatedDist = calculateTotalDistance(c);
+        const distVal = calculatedDist !== null ? calculatedDist : '';
+        const officialVal = c.officialDist || '';
+
         const appendCSVRow = (typeLabel, pt) => {
           if (!pt) return;
-          csvStr += `${id},${typeLabel},"${toDMS(pt.lat, true)}","${toDMS(pt.lng, false)}",±${pt.acc}m\n`;
+          csvStr += `"${name}",${id},${c.par},"${officialVal}","${distVal}",${typeLabel},"${toDMS(pt.lat, true)}","${toDMS(pt.lng, false)}",±${pt.acc}m\n`;
         };
         appendCSVRow('TEE', c.tee);
         c.waypoints.forEach((wp, idx) => appendCSVRow(`中間${idx + 1}`, wp));
         appendCSVRow('CUP', c.cup);
         if (c.bunkers) {
           c.bunkers.forEach((b, bIdx) => {
-            appendCSVRow(`バンカー${bIdx + 1}(中心)`, b.center);
-            appendCSVRow(`バンカー${bIdx + 1}(長辺)`, b.longEdge);
-            appendCSVRow(`バンカー${bIdx + 1}(短辺)`, b.shortEdge);
+            appendCSVRow(`BK${bIdx + 1}(中心)`, b.center);
+            appendCSVRow(`BK${bIdx + 1}(長辺)`, b.longEdge);
+            appendCSVRow(`BK${bIdx + 1}(短辺)`, b.shortEdge);
           });
         }
       });
@@ -569,42 +611,52 @@
       const blob = new Blob([csvStr], { type: 'text/csv;charset=utf-8;' });
       const link = document.createElement("a");
       link.href = URL.createObjectURL(blob);
-      link.download = `パークゴルフ座標データ_${new Date().toISOString().slice(0,10)}.csv`;
+      const fileName = parkName ? `PGデータ_${parkName}_${new Date().toISOString().slice(0,10)}.csv` : `PGデータ_${new Date().toISOString().slice(0,10)}.csv`;
+      link.download = fileName;
       link.click();
     }
 
     function printTable() { window.print(); }
 
     function copyTableText() {
-      let text = "コース\t種別\t緯度(DMS)\t経度(DMS)\t精度\n";
+      let text = "ゴルフ場名\tコース\tPar\t看板距離\t計測距離\t種別\t緯度(DMS)\t経度(DMS)\t精度\n";
+      const name = parkName || '未設定';
+
       courseIds.forEach(id => {
         const c = coursesData[id];
+        const calculatedDist = calculateTotalDistance(c);
+        const distVal = calculatedDist !== null ? `${calculatedDist}m` : '';
+        const officialVal = c.officialDist ? `${c.officialDist}m` : '';
+
         const appendTextRow = (typeLabel, pt) => {
           if (!pt) return;
-          text += `${id}\t${typeLabel}\t${toDMS(pt.lat, true)}\t${toDMS(pt.lng, false)}\t±${pt.acc}m\n`;
+          text += `${name}\t${id}\tPar${c.par}\t${officialVal}\t${distVal}\t${typeLabel}\t${toDMS(pt.lat, true)}\t${toDMS(pt.lng, false)}\t±${pt.acc}m\n`;
         };
         appendTextRow('TEE', c.tee);
         c.waypoints.forEach((wp, idx) => appendTextRow(`中間${idx + 1}`, wp));
         appendTextRow('CUP', c.cup);
         if (c.bunkers) {
           c.bunkers.forEach((b, bIdx) => {
-            appendTextRow(`バンカー${bIdx + 1}(中心)`, b.center);
-            appendTextRow(`バンカー${bIdx + 1}(長辺)`, b.longEdge);
-            appendTextRow(`バンカー${bIdx + 1}(短辺)`, b.shortEdge);
+            appendTextRow(`BK${bIdx + 1}(中心)`, b.center);
+            appendTextRow(`BK${bIdx + 1}(長辺)`, b.longEdge);
+            appendTextRow(`BK${bIdx + 1}(短辺)`, b.shortEdge);
           });
         }
       });
 
       navigator.clipboard.writeText(text).then(() => {
-        alert("座標一覧データをコピーしました！");
+        alert("データをコピーしました！");
       });
     }
 
     function resetAllData() {
-      if (confirm("すべての計測データをクリアしますか？")) {
+      if (confirm("すべての計測・入力データをクリアしますか？")) {
         localStorage.removeItem('pg_courses_data');
+        localStorage.removeItem('pg_park_name');
+        document.getElementById('parkName').value = '';
+        parkName = '';
         courseIds.forEach(id => {
-          coursesData[id] = { tee: null, waypoints: [], cup: null, bunkers: [] };
+          coursesData[id] = { par: 3, officialDist: '', tee: null, waypoints: [], cup: null, bunkers: [] };
         });
         render();
       }
