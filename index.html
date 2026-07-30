@@ -42,6 +42,28 @@
     .modal-actions { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
     .btn-secondary { background: #5f6368; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; flex: 1; }
     .btn-success { background: #188038; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; flex: 1; }
+    /* 精度表示用トースト（ポップアップ通知） */
+    .toast {
+      position: fixed;
+      top: 20%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0, 0, 0, 0.85);
+      color: #fff;
+      padding: 10px 18px;
+      border-radius: 20px;
+      font-size: 0.9rem;
+      font-weight: bold;
+      z-index: 1000;
+      opacity: 0;
+      transition: opacity 0.2s ease-in-out;
+      pointer-events: none;
+      text-align: center;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+    .toast.show {
+      opacity: 1;
+    }
   </style>
 </head>
 <body>
@@ -203,6 +225,24 @@
       render();
     }
 
+    // 【新規追加】精度表示用トースト（1.5秒で自動消去）
+    function showAccuracyToast(accuracyMeters) {
+      let toast = document.getElementById('accuracyToast');
+      if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'accuracyToast';
+        toast.className = 'toast';
+        document.body.appendChild(toast);
+      }
+  
+      toast.innerText = `位置取得完了！ (精度: ±${accuracyMeters}m)`;
+      toast.classList.add('show');
+  
+      setTimeout(() => {
+        toast.classList.remove('show');
+      }, 1500); // 1.5秒表示
+    }
+    
     function getCurrentLocationPromise() {
       return new Promise((resolve, reject) => {
         if (!navigator.geolocation) {
@@ -223,13 +263,16 @@
       });
     }
 
+    // 通常の地点取得 (TEE, 中間, CUP)
     async function captureLocation(courseId, type) {
       try {
         const point = await getCurrentLocationPromise();
         if (type === 'tee') coursesData[courseId].tee = point;
         else if (type === 'cup') coursesData[courseId].cup = point;
         else if (type === 'waypoint') coursesData[courseId].waypoints.push(point);
+        
         saveData();
+        showAccuracyToast(point.acc); // 精度を表示
       } catch (err) {
         alert("位置情報の取得に失敗しました: " + err);
       }
@@ -389,11 +432,13 @@
       });
     }
 
+    // バンカー地点取得
     async function captureBunkerPoint(stepKey) {
       try {
         const pt = await getCurrentLocationPromise();
         tempBunker[stepKey] = pt;
         renderBunkerModal();
+        showAccuracyToast(pt.acc); // 精度を表示
       } catch (err) {
         alert("位置情報の取得に失敗しました: " + err);
       }
