@@ -4,14 +4,23 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>パークゴルフ データ収集＆計測</title>
+
+  <!-- Leaflet 本体 (地図表示用) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
   <style>
     * { box-sizing: border-box; }
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 12px; background-color: #f4f6f8; color: #333; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 12px; background-color: #f4f6f8; color: #333; display: flex; flex-direction: column; min-height: 100vh; }
     h1 { font-size: 1.1rem; margin: 0 0 10px 0; text-align: center; }
-    .park-name-container { background: white; padding: 10px 12px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+    
+    .park-name-container { background: white; padding: 10px 12px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
     .park-name-container label { font-weight: bold; font-size: 0.9rem; white-space: nowrap; }
-    .park-name-container input { flex: 1; padding: 8px; font-size: 0.95rem; border: 1px solid #ccc; border-radius: 6px; }
-    .course-list { display: flex; flex-direction: column; gap: 10px; }
+    .park-name-container input[type="text"] { flex: 1; min-width: 150px; padding: 8px; font-size: 0.95rem; border: 1px solid #ccc; border-radius: 6px; }
+    .btn-load-csv { background: #0b57d0; color: white; border: none; padding: 8px 12px; border-radius: 6px; font-size: 0.85rem; font-weight: bold; cursor: pointer; white-space: nowrap; }
+
+    /* コースリストエリア */
+    .course-list { display: flex; flex-direction: column; gap: 10px; max-height: 45vh; overflow-y: auto; padding-right: 2px; }
     .course-card { background: white; padding: 10px 12px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: flex; flex-direction: column; gap: 8px; }
     .row-main { display: flex; align-items: center; gap: 6px; }
     .course-name { font-weight: bold; font-size: 1.1rem; width: 36px; flex-shrink: 0; }
@@ -29,9 +38,15 @@
     .par-selector { display: flex; gap: 3px; }
     .par-btn { padding: 3px 8px; border: 1px solid #ccc; background: white; border-radius: 4px; cursor: pointer; font-size: 0.8rem; }
     .par-btn.active { background: #1a73e8; color: white; border-color: #1a73e8; font-weight: bold; }
-    .bottom-actions { margin-top: 16px; display: flex; gap: 8px; }
-    .btn-primary { background: #1a73e8; color: white; border: none; font-weight: bold; padding: 12px; border-radius: 6px; flex: 1; cursor: pointer; }
-    .btn-danger { background: #dc3545; color: white; border: none; padding: 12px; border-radius: 6px; flex: 0.35; cursor: pointer; }
+    
+    .bottom-actions { margin: 10px 0; display: flex; gap: 8px; }
+    .btn-primary { background: #1a73e8; color: white; border: none; font-weight: bold; padding: 10px; border-radius: 6px; flex: 1; cursor: pointer; }
+    .btn-danger { background: #dc3545; color: white; border: none; padding: 10px; border-radius: 6px; flex: 0.35; cursor: pointer; }
+
+    /* 下半分のリアルタイム地図スタイル */
+    #mapContainer { height: 350px; width: 100%; border-radius: 8px; border: 2px solid #ccc; overflow: hidden; box-shadow: 0 2px 6px rgba(0,0,0,0.15); margin-top: 4px; }
+    #previewMap { width: 100%; height: 100%; }
+
     .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 100; }
     .modal-content { background: white; width: 95%; max-width: 650px; max-height: 85vh; border-radius: 12px; padding: 16px; display: flex; flex-direction: column; }
     .table-container { overflow-y: auto; margin: 12px 0; }
@@ -42,28 +57,6 @@
     .modal-actions { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
     .btn-secondary { background: #5f6368; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; flex: 1; }
     .btn-success { background: #188038; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; flex: 1; }
-    /* 精度表示用トースト（ポップアップ通知） */
-    .toast {
-      position: fixed;
-      top: 20%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      background: rgba(0, 0, 0, 0.85);
-      color: #fff;
-      padding: 10px 18px;
-      border-radius: 20px;
-      font-size: 0.9rem;
-      font-weight: bold;
-      z-index: 1000;
-      opacity: 0;
-      transition: opacity 0.2s ease-in-out;
-      pointer-events: none;
-      text-align: center;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-    }
-    .toast.show {
-      opacity: 1;
-    }
   </style>
 </head>
 <body>
@@ -73,6 +66,9 @@
   <div class="park-name-container">
     <label for="parkName">ゴルフ場名:</label>
     <input type="text" id="parkName" placeholder="例: 帯広の森運動公園PG" onchange="saveParkName()" />
+    <!-- CSV読み込み用ボタン -->
+    <button class="btn-load-csv" onclick="document.getElementById('csvLoadInput').click()">CSV読込</button>
+    <input type="file" id="csvLoadInput" accept=".csv" style="display:none;" onchange="loadCSVFile(event)" />
   </div>
 
   <div class="course-list" id="courseList"></div>
@@ -80,6 +76,11 @@
   <div class="bottom-actions">
     <button class="btn-primary" onclick="openModal()">全データ一覧を表示</button>
     <button class="btn-danger" onclick="resetAllData()">リセット</button>
+  </div>
+
+  <!-- 下半分のリアルタイム地図プレビュー -->
+  <div id="mapContainer">
+    <div id="previewMap"></div>
   </div>
 
   <!-- モーダル一覧 -->
@@ -112,7 +113,7 @@
     </div>
   </div>
 
-  <!-- バンカー計測モーダル（計測モード切り替え可能） -->
+  <!-- バンカー計測モーダル -->
   <div class="modal" id="bunkerModal">
     <div class="modal-content">
       <h2 style="font-size:1.1rem; margin:0 0 8px 0;" id="bunkerModalTitle">バンカー位置の計測</h2>
@@ -122,7 +123,6 @@
         <label for="isGrassBunker" style="font-weight:bold; font-size:0.85rem; color:#1b5e20; cursor:pointer;">グラスバンカー（GB）</label>
       </div>
 
-      <!-- 計測方式の選択切替ボタン -->
       <div style="display:flex; gap:6px; margin-bottom:10px;">
         <button id="mode4Btn" class="par-btn active" style="flex:1; padding:6px;" onclick="switchBunkerMode('4point')">外周4点計測（中心不使用）</button>
         <button id="mode3Btn" class="par-btn" style="flex:1; padding:6px;" onclick="switchBunkerMode('3point')">中心＋2点計測（旧方式）</button>
@@ -164,6 +164,80 @@
       }
     });
 
+    /* --- Leaflet 地図初期化 --- */
+    const previewMap = L.map('previewMap').setView([42.8988, 143.1555], 18);
+    L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/seamlessphoto/{z}/{x}/{y}.jpg', {
+      maxNativeZoom: 18,
+      maxZoom: 22,
+      attribution: '&copy; 国土地理院'
+    }).addTo(previewMap);
+
+    const mapLayerGroup = L.layerGroup().addTo(previewMap);
+
+    function updatePreviewMap() {
+      mapLayerGroup.clearLayers();
+      const allBounds = [];
+
+      courseIds.forEach(id => {
+        const c = coursesData[id];
+        const pts = [];
+        if (c.tee) pts.push(c.tee);
+        pts.push(...c.waypoints);
+        if (c.cup) pts.push(c.cup);
+
+        // コースライン
+        if (pts.length >= 2) {
+          const latlngs = pts.map(p => [p.lat, p.lng]);
+          L.polyline(latlngs, { color: '#00ffcc', weight: 3, opacity: 0.8 }).addTo(mapLayerGroup);
+          allBounds.push(...latlngs);
+        }
+
+        // TEEピン
+        if (c.tee) {
+          L.circleMarker([c.tee.lat, c.tee.lng], { radius: 6, color: '#006400', fillColor: '#2e8b57', fillOpacity: 1 })
+            .addTo(mapLayerGroup).bindPopup(`<b>${id} TEE</b>`);
+          allBounds.push([c.tee.lat, c.tee.lng]);
+        }
+
+        // CUPピン
+        if (c.cup) {
+          L.circleMarker([c.cup.lat, c.cup.lng], { radius: 6, color: '#dc3545', fillColor: '#ff4d4d', fillOpacity: 1 })
+            .addTo(mapLayerGroup).bindPopup(`<b>${id} CUP</b>`);
+          allBounds.push([c.cup.lat, c.cup.lng]);
+        }
+
+        // 中間点
+        c.waypoints.forEach((wp, idx) => {
+          L.circleMarker([wp.lat, wp.lng], { radius: 4, color: '#1a73e8', fillColor: '#66a3ff', fillOpacity: 1 })
+            .addTo(mapLayerGroup).bindPopup(`<b>${id} 中間${idx + 1}</b>`);
+          allBounds.push([wp.lat, wp.lng]);
+        });
+
+        // バンカー
+        if (c.bunkers) {
+          c.bunkers.forEach((b, bIdx) => {
+            const tag = b.isGrass ? 'GB' : 'BK';
+            const color = b.isGrass ? '#2e7d32' : '#d2b48c';
+            const bPts = [];
+            if (b.center) bPts.push(b.center, b.longEdge, b.shortEdge);
+            else if (b.short1) bPts.push(b.short1, b.short2, b.long1, b.long2);
+
+            bPts.forEach(pt => {
+              if (pt) {
+                L.circleMarker([pt.lat, pt.lng], { radius: 3, color: color, fillColor: color, fillOpacity: 0.8 })
+                  .addTo(mapLayerGroup).bindPopup(`<b>${id} ${tag}${bIdx + 1}</b>`);
+                allBounds.push([pt.lat, pt.lng]);
+              }
+            });
+          });
+        }
+      });
+
+      if (allBounds.length > 0) {
+        previewMap.fitBounds(allBounds, { padding: [20, 20] });
+      }
+    }
+
     function saveParkName() {
       parkName = document.getElementById('parkName').value;
       localStorage.setItem('pg_park_name', parkName);
@@ -186,6 +260,23 @@
     function updateOfficialDist(courseId, val) {
       coursesData[courseId].officialDist = val;
       saveData();
+    }
+
+    function parseCoordinate(dmsStr) {
+      if (!dmsStr) return null;
+      dmsStr = dmsStr.trim().replace(/"/g, '');
+      const match = dmsStr.match(/(\d+)°(\d+)'([\d.]+)([NSEW])/);
+      if (match) {
+        const deg = parseFloat(match[1]);
+        const min = parseFloat(match[2]);
+        const sec = parseFloat(match[3]);
+        const dir = match[4];
+        let val = deg + (min / 60) + (sec / 3600);
+        if (dir === 'S' || dir === 'W') val = -val;
+        return val;
+      }
+      const num = parseFloat(dmsStr);
+      return isNaN(num) ? null : num;
     }
 
     function toDMS(deg, isLat) {
@@ -223,26 +314,9 @@
     function saveData() {
       localStorage.setItem('pg_courses_data', JSON.stringify(coursesData));
       render();
+      updatePreviewMap(); // 地図を更新
     }
 
-    // 【新規追加】精度表示用トースト（1.5秒で自動消去）
-    function showAccuracyToast(accuracyMeters) {
-      let toast = document.getElementById('accuracyToast');
-      if (!toast) {
-        toast = document.createElement('div');
-        toast.id = 'accuracyToast';
-        toast.className = 'toast';
-        document.body.appendChild(toast);
-      }
-  
-      toast.innerText = `位置取得完了！ (精度: ±${accuracyMeters}m)`;
-      toast.classList.add('show');
-  
-      setTimeout(() => {
-        toast.classList.remove('show');
-      }, 1500); // 1.5秒表示
-    }
-    
     function getCurrentLocationPromise() {
       return new Promise((resolve, reject) => {
         if (!navigator.geolocation) {
@@ -263,7 +337,6 @@
       });
     }
 
-    // 通常の地点取得 (TEE, 中間, CUP)
     async function captureLocation(courseId, type) {
       try {
         const point = await getCurrentLocationPromise();
@@ -272,7 +345,6 @@
         else if (type === 'waypoint') coursesData[courseId].waypoints.push(point);
         
         saveData();
-        showAccuracyToast(point.acc); // 精度を表示
       } catch (err) {
         alert("位置情報の取得に失敗しました: " + err);
       }
@@ -292,6 +364,87 @@
         coursesData[courseId].bunkers = [];
         saveData();
       }
+    }
+
+    /* --- CSV ファイル復元読み込み --- */
+    function loadCSVFile(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        parseAndRestoreCSV(evt.target.result);
+        e.target.value = ''; // リセット
+      };
+      reader.readAsText(file);
+    }
+
+    function parseAndRestoreCSV(csvText) {
+      const lines = csvText.split('\n');
+      if (lines.length < 2) return;
+
+      let loadedParkName = "";
+
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+
+        const parts = line.split(',').map(s => s.trim().replace(/"/g, ''));
+        if (parts.length < 8) continue;
+
+        loadedParkName = parts[0];
+        const courseId = parts[1];
+        const par = parseInt(parts[2], 10) || 3;
+        const officialDist = parts[3] || '';
+        const type = parts[5];
+        const lat = parseCoordinate(parts[6]);
+        const lng = parseCoordinate(parts[7]);
+        const accMatch = parts[8] ? parts[8].match(/[\d.]+/) : null;
+        const acc = accMatch ? parseFloat(accMatch[0]) : 1.0;
+
+        if (lat === null || lng === null || !coursesData[courseId]) continue;
+
+        const pt = { lat, lng, acc };
+        coursesData[courseId].par = par;
+        if (officialDist) coursesData[courseId].officialDist = officialDist;
+
+        if (type === 'TEE') {
+          coursesData[courseId].tee = pt;
+        } else if (type.startsWith('中間')) {
+          coursesData[courseId].waypoints.push(pt);
+        } else if (type === 'CUP') {
+          coursesData[courseId].cup = pt;
+        } else if (type.includes('BK') || type.includes('GB')) {
+          const isGrass = type.includes('GB');
+          const match = type.match(/(?:BK|GB)(\d+)\((.+)\)/);
+          if (match) {
+            const bIdx = parseInt(match[1], 10) - 1;
+            const bType = match[2];
+
+            if (!coursesData[courseId].bunkers[bIdx]) {
+              coursesData[courseId].bunkers[bIdx] = { isGrass: isGrass, mode: '4point' };
+            }
+            const b = coursesData[courseId].bunkers[bIdx];
+
+            if (bType === '中心') b.center = pt;
+            else if (bType === '長辺') b.longEdge = pt;
+            else if (bType === '短辺') b.shortEdge = pt;
+            else if (bType === '短辺1') b.short1 = pt;
+            else if (bType === '短辺2') b.short2 = pt;
+            else if (bType === '長辺1') b.long1 = pt;
+            else if (bType === '長辺2') b.long2 = pt;
+          }
+        }
+      }
+
+      if (loadedParkName && loadedParkName !== '未設定') {
+        parkName = loadedParkName;
+        document.getElementById('parkName').value = parkName;
+        localStorage.setItem('pg_park_name', parkName);
+      }
+
+      saveData();
+      alert("CSVデータから復元・読み込みが完了しました！");
     }
 
     function render() {
@@ -361,9 +514,9 @@
       });
     }
 
-    /* ---- バンカー計測（4点 & 3点ハイブリッド対応） ---- */
+    /* ---- バンカー計測 ---- */
     let currentBunkerCourseId = null;
-    let bunkerMode = '4point'; // '4point' または '3point'
+    let bunkerMode = '4point';
     let tempBunker = { isGrass: false, mode: '4point' };
 
     function openBunkerModal(courseId) {
@@ -432,13 +585,11 @@
       });
     }
 
-    // バンカー地点取得
     async function captureBunkerPoint(stepKey) {
       try {
         const pt = await getCurrentLocationPromise();
         tempBunker[stepKey] = pt;
         renderBunkerModal();
-        showAccuracyToast(pt.acc); // 精度を表示
       } catch (err) {
         alert("位置情報の取得に失敗しました: " + err);
       }
@@ -456,7 +607,7 @@
       renderBunkerModal();
     }
 
-    /* ---- 一覧・CSV・iPhone共有機能 ---- */
+    /* ---- 一覧・CSV・印刷 ---- */
     function openModal() {
       const tbody = document.getElementById('modalTableBody');
       tbody.innerHTML = '';
@@ -491,12 +642,10 @@
           c.bunkers.forEach((b, bIdx) => {
             const tag = b.isGrass ? 'GB' : 'BK';
             if (b.center) {
-              // 旧3点形式
               addRow(`${tag}${bIdx + 1}(中心)`, b.center);
               addRow(`${tag}${bIdx + 1}(長辺)`, b.longEdge);
               addRow(`${tag}${bIdx + 1}(短辺)`, b.shortEdge);
             } else {
-              // 新4点形式
               addRow(`${tag}${bIdx + 1}(短辺1)`, b.short1);
               addRow(`${tag}${bIdx + 1}(短辺2)`, b.short2);
               addRow(`${tag}${bIdx + 1}(長辺1)`, b.long1);
@@ -617,11 +766,12 @@
         courseIds.forEach(id => {
           coursesData[id] = { par: 3, officialDist: '', tee: null, waypoints: [], cup: null, bunkers: [] };
         });
-        render();
+        saveData();
       }
     }
 
     render();
+    updatePreviewMap();
   </script>
 </body>
 </html>
