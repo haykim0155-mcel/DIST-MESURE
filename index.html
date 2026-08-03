@@ -151,6 +151,7 @@
     
     let parkName = localStorage.getItem('pg_park_name') || '';
     let coursesData = JSON.parse(localStorage.getItem('pg_courses_data')) || {};
+    let lastCapturedPoint = null; // 最後に取得した地点（地図の中心移動用）
 
     document.getElementById('parkName').value = parkName;
 
@@ -174,9 +175,33 @@
 
     const mapLayerGroup = L.layerGroup().addTo(previewMap);
 
+    // ドラッグ移動可能なピンを作成する共通関数
+    function createDraggableMarker(pt, options, onDragEndCallback) {
+      const marker = L.marker([pt.lat, pt.lng], {
+        draggable: true,
+        icon: L.divIcon({
+          className: 'custom-pin',
+          html: `<div style="width:14px; height:14px; background:${options.fillColor}; border:2px solid ${options.color}; border-radius:50%; box-shadow:0 0 4px rgba(0,0,0,0.5);"></div>`,
+          iconSize: [14, 14],
+          iconAnchor: [7, 7]
+        })
+      });
+
+      marker.bindPopup(options.popupText);
+
+      // ピン移動完了時（指を離したとき）に座標を更新＆保存
+      marker.on('dragend', function(e) {
+        const newLatLng = e.target.getLatLng();
+        pt.lat = newLatLng.lat;
+        pt.lng = newLatLng.lng;
+        onDragEndCallback();
+      });
+
+      return marker;
+    }
+
     function updatePreviewMap() {
       mapLayerGroup.clearLayers();
-      const allBounds = [];
 
       courseIds.forEach(id => {
         const c = coursesData[id];
@@ -189,52 +214,60 @@
         if (pts.length >= 2) {
           const latlngs = pts.map(p => [p.lat, p.lng]);
           L.polyline(latlngs, { color: '#00ffcc', weight: 3, opacity: 0.8 }).addTo(mapLayerGroup);
-          allBounds.push(...latlngs);
         }
 
-        // TEEピン
+        // TEEピン（ドラッグ可）
         if (c.tee) {
-          L.circleMarker([c.tee.lat, c.tee.lng], { radius: 6, color: '#006400', fillColor: '#2e8b57', fillOpacity: 1 })
-            .addTo(mapLayerGroup).bindPopup(`<b>${id} TEE</b>`);
-          allBounds.push([c.tee.lat, c.tee.lng]);
+          createDraggableMarker(c.tee, {
+            color: '#006400', fillColor: '#2e8b57', popupText: `<b>${id} TEE</b><br>(ドラッグで微調整可)`
+          }, () => saveData()).addTo(mapLayerGroup);
         }
 
-        // CUPピン
+        // CUPピン（ドラッグ可）
         if (c.cup) {
-          L.circleMarker([c.cup.lat, c.cup.lng], { radius: 6, color: '#dc3545', fillColor: '#ff4d4d', fillOpacity: 1 })
-            .addTo(mapLayerGroup).bindPopup(`<b>${id} CUP</b>`);
-          allBounds.push([c.cup.lat, c.cup.lng]);
+          createDraggableMarker(c.cup, {
+            color: '#dc3545', fillColor: '#ff4d4d', popupText: `<b>${id} CUP</b><br>(ドラッグで微調整可)`
+          }, () => saveData()).addTo(mapLayerGroup);
         }
 
-        // 中間点
+        // 中間点ピン（ドラッグ可）
         c.waypoints.forEach((wp, idx) => {
-          L.circleMarker([wp.lat, wp.lng], { radius: 4, color: '#1a73e8', fillColor: '#66a3ff', fillOpacity: 1 })
-            .addTo(mapLayerGroup).bindPopup(`<b>${id} 中間${idx + 1}</b>`);
-          allBounds.push([wp.lat, wp.lng]);
+          createDraggableMarker(wp, {
+            color: '#1a73e8', fillColor: '#66a3ff', popupText: `<b>${id} 中間${idx + 1}</b><br>(ドラッグで微調整可)`
+          }, () => saveData()).addTo(mapLayerGroup);
         });
 
-        // バンカー
+        // バンカーピン（ドラッグ可）
         if (c.bunkers) {
           c.bunkers.forEach((b, bIdx) => {
             const tag = b.isGrass ? 'GB' : 'BK';
             const color = b.isGrass ? '#2e7d32' : '#d2b48c';
-            const bPts = [];
-            if (b.center) bPts.push(b.center, b.longEdge, b.shortEdge);
-            else if (b.short1) bPts.push(b.short1, b.short2, b.long1, b.long2);
 
-            bPts.forEach(pt => {
+            const checkAndAddBunkerPt = (pt, label) => {
               if (pt) {
-                L.circleMarker([pt.lat, pt.lng], { radius: 3, color: color, fillColor: color, fillOpacity: 0.8 })
-                  .addTo(mapLayerGroup).bindPopup(`<b>${id} ${tag}${bIdx + 1}</b>`);
-                allBounds.push([pt.lat, pt.lng]);
+                createDraggableMarker(pt, {
+                  color: color, fillColor: color, popupText: `<b>${id} ${tag}${bIdx + 1}(${label})</b><br>(ドラッグで微調整可)`
+                }, () => saveData()).addTo(mapLayerGroup);
               }
-            });
+            };
+
+            if (b.center) {
+              checkAndAddBunkerPt(b.center, '中心');
+              checkAndAddBunkerPt(b.longEdge, '長辺');
+              checkAndAddBunkerPt(b.shortEdge, '短辺');
+            } else {
+              checkAndAddBunkerPt(b.short1, '短辺1');
+              checkAndAddBunkerPt(b.short2, '短辺2');
+              checkAndAddBunkerPt(b.long1, '長辺1');
+              checkAndAddBunkerPt(b.long2, '長辺2');
+            }
           });
         }
       });
 
-      if (allBounds.length > 0) {
-        previewMap.fitBounds(allBounds, { padding: [20, 20] });
+      // ズーム維持＆最新取得位置へ画面の中心を移動
+      if (lastCapturedPoint) {
+        previewMap.panTo([lastCapturedPoint.lat, lastCapturedPoint.lng]);
       }
     }
 
@@ -314,7 +347,7 @@
     function saveData() {
       localStorage.setItem('pg_courses_data', JSON.stringify(coursesData));
       render();
-      updatePreviewMap(); // 地図を更新
+      updatePreviewMap();
     }
 
     function getCurrentLocationPromise() {
@@ -344,6 +377,7 @@
         else if (type === 'cup') coursesData[courseId].cup = point;
         else if (type === 'waypoint') coursesData[courseId].waypoints.push(point);
         
+        lastCapturedPoint = point; // 最新取得地点を記憶
         saveData();
       } catch (err) {
         alert("位置情報の取得に失敗しました: " + err);
@@ -374,7 +408,7 @@
       const reader = new FileReader();
       reader.onload = function(evt) {
         parseAndRestoreCSV(evt.target.result);
-        e.target.value = ''; // リセット
+        e.target.value = '';
       };
       reader.readAsText(file);
     }
@@ -384,6 +418,7 @@
       if (lines.length < 2) return;
 
       let loadedParkName = "";
+      let firstPoint = null;
 
       for (let i = 1; i < lines.length; i++) {
         const line = lines[i].trim();
@@ -405,6 +440,8 @@
         if (lat === null || lng === null || !coursesData[courseId]) continue;
 
         const pt = { lat, lng, acc };
+        if (!firstPoint) firstPoint = pt;
+
         coursesData[courseId].par = par;
         if (officialDist) coursesData[courseId].officialDist = officialDist;
 
@@ -442,6 +479,8 @@
         document.getElementById('parkName').value = parkName;
         localStorage.setItem('pg_park_name', parkName);
       }
+
+      if (firstPoint) lastCapturedPoint = firstPoint;
 
       saveData();
       alert("CSVデータから復元・読み込みが完了しました！");
@@ -589,6 +628,7 @@
       try {
         const pt = await getCurrentLocationPromise();
         tempBunker[stepKey] = pt;
+        lastCapturedPoint = pt; // 最新位置に記憶
         renderBunkerModal();
       } catch (err) {
         alert("位置情報の取得に失敗しました: " + err);
@@ -763,6 +803,7 @@
         localStorage.removeItem('pg_park_name');
         document.getElementById('parkName').value = '';
         parkName = '';
+        lastCapturedPoint = null;
         courseIds.forEach(id => {
           coursesData[id] = { par: 3, officialDist: '', tee: null, waypoints: [], cup: null, bunkers: [] };
         });
