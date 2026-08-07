@@ -44,7 +44,7 @@
     .btn-danger { background: #dc3545; color: white; border: none; padding: 10px; border-radius: 6px; flex: 0.35; cursor: pointer; }
 
     /* 下半分のリアルタイム地図スタイル */
-    #mapContainer { height: 350px; width: 100%; border-radius: 8px; border: 2px solid #ccc; overflow: hidden; box-shadow: 0 2px 6px rgba(0,0,0,0.15); margin-top: 4px; position: relative; z-index: 1; }
+    #mapContainer { height: 40vh; width: 100%; border-radius: 8px; border: 2px solid #ccc; overflow: hidden; box-shadow: 0 2px 6px rgba(0,0,0,0.15); margin-top: 4px; position: relative; z-index: 1; }
     #previewMap { width: 100%; height: 100%; }
 
     .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 9999; }
@@ -113,22 +113,19 @@
     </div>
   </div>
 
-  <!-- バンカー計測モーダル -->
+  <!-- バンカー計測モーダル（グラスバンカー選択を下部に移動） -->
   <div class="modal" id="bunkerModal">
     <div class="modal-content">
       <h2 style="font-size:1.1rem; margin:0 0 8px 0;" id="bunkerModalTitle">バンカー位置の計測</h2>
       
-      <div style="margin-bottom:8px; display:flex; align-items:center; gap:6px; background:#eaf5ea; padding:6px 8px; border-radius:6px;">
-        <input type="checkbox" id="isGrassBunker" style="transform:scale(1.2);" onchange="toggleGrassBunker(this.checked)" />
-        <label for="isGrassBunker" style="font-weight:bold; font-size:0.85rem; color:#1b5e20; cursor:pointer;">グラスバンカー（GB）</label>
-      </div>
-
-      <div style="display:flex; gap:6px; margin-bottom:10px;">
-        <button id="mode4Btn" class="par-btn active" style="flex:1; padding:6px;" onclick="switchBunkerMode('4point')">外周4点計測（中心不使用）</button>
-        <button id="mode3Btn" class="par-btn" style="flex:1; padding:6px;" onclick="switchBunkerMode('3point')">中心＋2点計測（旧方式）</button>
-      </div>
-
+      <!-- 1. 位置取得ステップ群 -->
       <div id="bunkerStepContainer"></div>
+
+      <!-- 2. グラスバンカーチェックボックス（一番下に配置） -->
+      <div style="margin-top:10px; display:flex; align-items:center; gap:6px; background:#eaf5ea; padding:8px; border-radius:6px; border:1px solid #c8e6c9;">
+        <input type="checkbox" id="isGrassBunker" style="transform:scale(1.2);" onchange="toggleGrassBunker(this.checked)" />
+        <label for="isGrassBunker" style="font-weight:bold; font-size:0.85rem; color:#1b5e20; cursor:pointer;">グラスバンカー（GB）として登録</label>
+      </div>
 
       <div style="margin-top: 8px; text-align: right;">
         <span id="bunkerCountLabel" style="font-size:0.85rem; font-weight:bold; color:#b06000;"></span>
@@ -553,38 +550,20 @@
       });
     }
 
-    /* ---- バンカー計測 ---- */
+    /* ---- バンカー計測（フリー点数対応） ---- */
     let currentBunkerCourseId = null;
-    let bunkerMode = '4point';
-    let tempBunker = { isGrass: false, mode: '4point' };
+    let tempBunker = { isGrass: false };
 
     function openBunkerModal(courseId) {
       currentBunkerCourseId = courseId;
-      bunkerMode = '4point';
-      tempBunker = { isGrass: false, mode: '4point' };
+      tempBunker = { isGrass: false };
       document.getElementById('isGrassBunker').checked = false;
-      switchBunkerMode('4point');
-      document.getElementById('bunkerModal').style.display = 'flex';
-    }
-
-    function switchBunkerMode(mode) {
-      bunkerMode = mode;
-      tempBunker.mode = mode;
-      document.getElementById('mode4Btn').className = mode === '4point' ? 'par-btn active' : 'par-btn';
-      document.getElementById('mode3Btn').className = mode === '3point' ? 'par-btn active' : 'par-btn';
       renderBunkerModal();
+      document.getElementById('bunkerModal').style.display = 'flex';
     }
 
     function toggleGrassBunker(checked) {
       tempBunker.isGrass = checked;
-    }
-
-    function closeBunkerModal() {
-      if (tempBunker.short1 || tempBunker.long1 || tempBunker.center) {
-        coursesData[currentBunkerCourseId].bunkers.push(tempBunker);
-        saveData();
-      }
-      document.getElementById('bunkerModal').style.display = 'none';
     }
 
     function renderBunkerModal() {
@@ -593,21 +572,14 @@
       const existingCount = coursesData[currentBunkerCourseId].bunkers.length;
       document.getElementById('bunkerCountLabel').innerText = `登録済みバンカー: ${existingCount} 個`;
 
-      let steps = [];
-      if (bunkerMode === '4point') {
-        steps = [
-          { key: 'short1', label: '1. 短辺の端①' },
-          { key: 'short2', label: '2. 短辺の端②' },
-          { key: 'long1',  label: '3. 長辺の端①' },
-          { key: 'long2',  label: '4. 長辺の端②' }
-        ];
-      } else {
-        steps = [
-          { key: 'center', label: '1. 中心点' },
-          { key: 'longEdge', label: '2. 長辺の端' },
-          { key: 'shortEdge', label: '3. 短辺の端' }
-        ];
-      }
+      // 固定の5項目順序
+      const steps = [
+        { key: 'center',    label: '1. 中心点' },
+        { key: 'short1',    label: '2. 短辺の端①' },
+        { key: 'long1',     label: '3. 長辺の端①' },
+        { key: 'short2',    label: '4. 短辺の端②' },
+        { key: 'long2',     label: '5. 長辺の端②' }
+      ];
 
       container.innerHTML = '';
       steps.forEach(step => {
@@ -628,7 +600,7 @@
       try {
         const pt = await getCurrentLocationPromise();
         tempBunker[stepKey] = pt;
-        lastCapturedPoint = pt; // 最新位置に記憶
+        lastCapturedPoint = pt;
         renderBunkerModal();
       } catch (err) {
         alert("位置情報の取得に失敗しました: " + err);
@@ -636,13 +608,15 @@
     }
 
     function saveCurrentBunkerAndNext() {
-      if (!tempBunker.short1 && !tempBunker.long1 && !tempBunker.center) {
+      // いずれか1点でも取れていれば保存OK
+      const hasAnyPoint = Object.keys(tempBunker).some(k => k !== 'isGrass' && tempBunker[k]);
+      if (!hasAnyPoint) {
         alert("位置データが何も取得されていません");
         return;
       }
       coursesData[currentBunkerCourseId].bunkers.push(tempBunker);
       saveData();
-      tempBunker = { isGrass: false, mode: bunkerMode };
+      tempBunker = { isGrass: false };
       document.getElementById('isGrassBunker').checked = false;
       renderBunkerModal();
     }
