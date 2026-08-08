@@ -186,7 +186,6 @@
 
       marker.bindPopup(options.popupText);
 
-      // ピン移動完了時（指を離したとき）に座標を更新＆保存
       marker.on('dragend', function(e) {
         const newLatLng = e.target.getLatLng();
         pt.lat = newLatLng.lat;
@@ -248,21 +247,17 @@
               }
             };
 
-            if (b.center) {
-              checkAndAddBunkerPt(b.center, '中心');
-              checkAndAddBunkerPt(b.longEdge, '長辺');
-              checkAndAddBunkerPt(b.shortEdge, '短辺');
-            } else {
-              checkAndAddBunkerPt(b.short1, '短辺1');
-              checkAndAddBunkerPt(b.short2, '短辺2');
-              checkAndAddBunkerPt(b.long1, '長辺1');
-              checkAndAddBunkerPt(b.long2, '長辺2');
-            }
+            checkAndAddBunkerPt(b.center, '中心');
+            checkAndAddBunkerPt(b.short1, '短辺1');
+            checkAndAddBunkerPt(b.short2, '短辺2');
+            checkAndAddBunkerPt(b.long1, '長辺1');
+            checkAndAddBunkerPt(b.long2, '長辺2');
+            checkAndAddBunkerPt(b.longEdge, '長辺');
+            checkAndAddBunkerPt(b.shortEdge, '短辺');
           });
         }
       });
 
-      // ズーム維持＆最新取得位置へ画面の中心を移動
       if (lastCapturedPoint) {
         previewMap.panTo([lastCapturedPoint.lat, lastCapturedPoint.lng]);
       }
@@ -374,7 +369,7 @@
         else if (type === 'cup') coursesData[courseId].cup = point;
         else if (type === 'waypoint') coursesData[courseId].waypoints.push(point);
         
-        lastCapturedPoint = point; // 最新取得地点を記憶
+        lastCapturedPoint = point;
         saveData();
       } catch (err) {
         alert("位置情報の取得に失敗しました: " + err);
@@ -397,7 +392,7 @@
       }
     }
 
-    /* --- CSV ファイル復元読み込み --- */
+    /* --- CSV ファイル復元読み込み (BK/GB分離修正版) --- */
     function loadCSVFile(e) {
       const file = e.target.files[0];
       if (!file) return;
@@ -448,25 +443,27 @@
           coursesData[courseId].waypoints.push(pt);
         } else if (type === 'CUP') {
           coursesData[courseId].cup = pt;
-        } else if (type.includes('BK') || type.includes('GB')) {
+        } else if (type.includes('BK') || type.includes('GB') || type.includes('バンカー')) {
           const isGrass = type.includes('GB');
-          const match = type.match(/(?:BK|GB)(\d+)\((.+)\)/);
+          const match = type.match(/(?:BK|GB|バンカー)(\d+)\((.+)\)/);
           if (match) {
-            const bIdx = parseInt(match[1], 10) - 1;
+            const bPrefix = isGrass ? 'GB' : 'BK';
+            const bKey = bPrefix + match[1];
             const bType = match[2];
 
-            if (!coursesData[courseId].bunkers[bIdx]) {
-              coursesData[courseId].bunkers[bIdx] = { isGrass: isGrass, mode: '4point' };
+            let bunkerObj = coursesData[courseId].bunkers.find(b => b._key === bKey);
+            if (!bunkerObj) {
+              bunkerObj = { _key: bKey, isGrass: isGrass, mode: '4point' };
+              coursesData[courseId].bunkers.push(bunkerObj);
             }
-            const b = coursesData[courseId].bunkers[bIdx];
 
-            if (bType === '中心') b.center = pt;
-            else if (bType === '長辺') b.longEdge = pt;
-            else if (bType === '短辺') b.shortEdge = pt;
-            else if (bType === '短辺1') b.short1 = pt;
-            else if (bType === '短辺2') b.short2 = pt;
-            else if (bType === '長辺1') b.long1 = pt;
-            else if (bType === '長辺2') b.long2 = pt;
+            if (bType === '中心') bunkerObj.center = pt;
+            else if (bType === '長辺') bunkerObj.longEdge = pt;
+            else if (bType === '短辺') bunkerObj.shortEdge = pt;
+            else if (bType === '短辺1') bunkerObj.short1 = pt;
+            else if (bType === '短辺2') bunkerObj.short2 = pt;
+            else if (bType === '長辺1') bunkerObj.long1 = pt;
+            else if (bType === '長辺2') bunkerObj.long2 = pt;
           }
         }
       }
@@ -572,7 +569,6 @@
       const existingCount = coursesData[currentBunkerCourseId].bunkers.length;
       document.getElementById('bunkerCountLabel').innerText = `登録済みバンカー: ${existingCount} 個`;
 
-      // 固定の5項目順序
       const steps = [
         { key: 'center',    label: '1. 中心点' },
         { key: 'short1',    label: '2. 短辺の端①' },
@@ -608,7 +604,6 @@
     }
 
     function saveCurrentBunkerAndNext() {
-      // いずれか1点でも取れていれば保存OK
       const hasAnyPoint = Object.keys(tempBunker).some(k => k !== 'isGrass' && tempBunker[k]);
       if (!hasAnyPoint) {
         alert("位置データが何も取得されていません");
@@ -619,6 +614,15 @@
       tempBunker = { isGrass: false };
       document.getElementById('isGrassBunker').checked = false;
       renderBunkerModal();
+    }
+
+    function closeBunkerModal() {
+      const hasAnyPoint = Object.keys(tempBunker).some(k => k !== 'isGrass' && tempBunker[k]);
+      if (hasAnyPoint) {
+        coursesData[currentBunkerCourseId].bunkers.push(tempBunker);
+        saveData();
+      }
+      document.getElementById('bunkerModal').style.display = 'none';
     }
 
     /* ---- 一覧・CSV・印刷 ---- */
@@ -655,16 +659,14 @@
         if (c.bunkers) {
           c.bunkers.forEach((b, bIdx) => {
             const tag = b.isGrass ? 'GB' : 'BK';
-            if (b.center) {
-              addRow(`${tag}${bIdx + 1}(中心)`, b.center);
-              addRow(`${tag}${bIdx + 1}(長辺)`, b.longEdge);
-              addRow(`${tag}${bIdx + 1}(短辺)`, b.shortEdge);
-            } else {
-              addRow(`${tag}${bIdx + 1}(短辺1)`, b.short1);
-              addRow(`${tag}${bIdx + 1}(短辺2)`, b.short2);
-              addRow(`${tag}${bIdx + 1}(長辺1)`, b.long1);
-              addRow(`${tag}${bIdx + 1}(長辺2)`, b.long2);
-            }
+            const num = bIdx + 1;
+            if (b.center) addRow(`${tag}${num}(中心)`, b.center);
+            if (b.short1) addRow(`${tag}${num}(短辺1)`, b.short1);
+            if (b.short2) addRow(`${tag}${num}(短辺2)`, b.short2);
+            if (b.long1)  addRow(`${tag}${num}(長辺1)`, b.long1);
+            if (b.long2)  addRow(`${tag}${num}(長辺2)`, b.long2);
+            if (b.longEdge)  addRow(`${tag}${num}(長辺)`, b.longEdge);
+            if (b.shortEdge) addRow(`${tag}${num}(短辺)`, b.shortEdge);
           });
         }
       });
@@ -697,16 +699,14 @@
         if (c.bunkers) {
           c.bunkers.forEach((b, bIdx) => {
             const tag = b.isGrass ? 'GB' : 'BK';
-            if (b.center) {
-              appendCSVRow(`${tag}${bIdx + 1}(中心)`, b.center);
-              appendCSVRow(`${tag}${bIdx + 1}(長辺)`, b.longEdge);
-              appendCSVRow(`${tag}${bIdx + 1}(短辺)`, b.shortEdge);
-            } else {
-              appendCSVRow(`${tag}${bIdx + 1}(短辺1)`, b.short1);
-              appendCSVRow(`${tag}${bIdx + 1}(短辺2)`, b.short2);
-              appendCSVRow(`${tag}${bIdx + 1}(長辺1)`, b.long1);
-              appendCSVRow(`${tag}${bIdx + 1}(長辺2)`, b.long2);
-            }
+            const num = bIdx + 1;
+            if (b.center) appendCSVRow(`${tag}${num}(中心)`, b.center);
+            if (b.short1) appendCSVRow(`${tag}${num}(短辺1)`, b.short1);
+            if (b.short2) appendCSVRow(`${tag}${num}(短辺2)`, b.short2);
+            if (b.long1)  appendCSVRow(`${tag}${num}(長辺1)`, b.long1);
+            if (b.long2)  appendCSVRow(`${tag}${num}(長辺2)`, b.long2);
+            if (b.longEdge)  appendCSVRow(`${tag}${num}(長辺)`, b.longEdge);
+            if (b.shortEdge) appendCSVRow(`${tag}${num}(短辺)`, b.shortEdge);
           });
         }
       });
@@ -752,16 +752,14 @@
         if (c.bunkers) {
           c.bunkers.forEach((b, bIdx) => {
             const tag = b.isGrass ? 'GB' : 'BK';
-            if (b.center) {
-              appendTextRow(`${tag}${bIdx + 1}(中心)`, b.center);
-              appendTextRow(`${tag}${bIdx + 1}(長辺)`, b.longEdge);
-              appendTextRow(`${tag}${bIdx + 1}(短辺)`, b.shortEdge);
-            } else {
-              appendTextRow(`${tag}${bIdx + 1}(短辺1)`, b.short1);
-              appendTextRow(`${tag}${bIdx + 1}(短辺2)`, b.short2);
-              appendTextRow(`${tag}${bIdx + 1}(長辺1)`, b.long1);
-              appendTextRow(`${tag}${bIdx + 1}(長辺2)`, b.long2);
-            }
+            const num = bIdx + 1;
+            if (b.center) appendTextRow(`${tag}${num}(中心)`, b.center);
+            if (b.short1) appendTextRow(`${tag}${num}(短辺1)`, b.short1);
+            if (b.short2) appendTextRow(`${tag}${num}(短辺2)`, b.short2);
+            if (b.long1)  appendTextRow(`${tag}${num}(長辺1)`, b.long1);
+            if (b.long2)  appendTextRow(`${tag}${num}(長辺2)`, b.long2);
+            if (b.longEdge)  appendTextRow(`${tag}${num}(長辺)`, b.longEdge);
+            if (b.shortEdge) appendTextRow(`${tag}${num}(短辺)`, b.shortEdge);
           });
         }
       });
