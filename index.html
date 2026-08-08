@@ -637,14 +637,15 @@
         const distStr = calculatedDist !== null ? `${calculatedDist}m` : '-';
         const officialStr = c.officialDist ? `${c.officialDist}m` : '-';
 
-        const addRow = (typeLabel, pt) => {
+        // 共通行追加関数 (isBunker フラグで Par / 距離の表示を制御)
+        const addRow = (typeLabel, pt, isBunker = false) => {
           if (!pt) return;
           const tr = document.createElement('tr');
           tr.innerHTML = `
             <td>${id}</td>
-            <td>Par${c.par}</td>
-            <td>${officialStr}</td>
-            <td>${distStr}</td>
+            <td>${isBunker ? '-' : `Par${c.par}`}</td>
+            <td>${isBunker ? '-' : officialStr}</td>
+            <td>${isBunker ? '-' : distStr}</td>
             <td>${typeLabel}</td>
             <td>${toDMS(pt.lat, true)}</td>
             <td>${toDMS(pt.lng, false)}</td>
@@ -656,17 +657,19 @@
         addRow('TEE', c.tee);
         c.waypoints.forEach((wp, idx) => addRow(`中間${idx + 1}`, wp));
         addRow('CUP', c.cup);
+
         if (c.bunkers) {
           c.bunkers.forEach((b, bIdx) => {
             const tag = b.isGrass ? 'GB' : 'BK';
             const num = bIdx + 1;
-            if (b.center) addRow(`${tag}${num}(中心)`, b.center);
-            if (b.short1) addRow(`${tag}${num}(短辺1)`, b.short1);
-            if (b.short2) addRow(`${tag}${num}(短辺2)`, b.short2);
-            if (b.long1)  addRow(`${tag}${num}(長辺1)`, b.long1);
-            if (b.long2)  addRow(`${tag}${num}(長辺2)`, b.long2);
-            if (b.longEdge)  addRow(`${tag}${num}(長辺)`, b.longEdge);
-            if (b.shortEdge) addRow(`${tag}${num}(短辺)`, b.shortEdge);
+            // バンカー行は第3引数に true を渡して Par / 距離を空欄化
+            if (b.center)    addRow(`${tag}${num}(中心)`, b.center, true);
+            if (b.short1)    addRow(`${tag}${num}(短辺1)`, b.short1, true);
+            if (b.short2)    addRow(`${tag}${num}(短辺2)`, b.short2, true);
+            if (b.long1)     addRow(`${tag}${num}(長辺1)`, b.long1, true);
+            if (b.long2)     addRow(`${tag}${num}(長辺2)`, b.long2, true);
+            if (b.longEdge)  addRow(`${tag}${num}(長辺)`, b.longEdge, true);
+            if (b.shortEdge) addRow(`${tag}${num}(短辺)`, b.shortEdge, true);
           });
         }
       });
@@ -688,25 +691,29 @@
         const distVal = calculatedDist !== null ? calculatedDist : '';
         const officialVal = c.officialDist || '';
 
-        const appendCSVRow = (typeLabel, pt) => {
+        const appendCSVRow = (typeLabel, pt, isBunker = false) => {
           if (!pt) return;
-          csvStr += `"${name}",${id},${c.par},"${officialVal}","${distVal}",${typeLabel},"${toDMS(pt.lat, true)}","${toDMS(pt.lng, false)}",±${pt.acc}m\n`;
+          const parVal = isBunker ? '' : c.par;
+          const offVal = isBunker ? '' : officialVal;
+          const calVal = isBunker ? '' : distVal;
+          csvStr += `"${name}",${id},${parVal},"${offVal}","${calVal}",${typeLabel},"${toDMS(pt.lat, true)}","${toDMS(pt.lng, false)}",±${pt.acc}m\n`;
         };
 
         appendCSVRow('TEE', c.tee);
         c.waypoints.forEach((wp, idx) => appendCSVRow(`中間${idx + 1}`, wp));
         appendCSVRow('CUP', c.cup);
+
         if (c.bunkers) {
           c.bunkers.forEach((b, bIdx) => {
             const tag = b.isGrass ? 'GB' : 'BK';
             const num = bIdx + 1;
-            if (b.center) appendCSVRow(`${tag}${num}(中心)`, b.center);
-            if (b.short1) appendCSVRow(`${tag}${num}(短辺1)`, b.short1);
-            if (b.short2) appendCSVRow(`${tag}${num}(短辺2)`, b.short2);
-            if (b.long1)  appendCSVRow(`${tag}${num}(長辺1)`, b.long1);
-            if (b.long2)  appendCSVRow(`${tag}${num}(長辺2)`, b.long2);
-            if (b.longEdge)  appendCSVRow(`${tag}${num}(長辺)`, b.longEdge);
-            if (b.shortEdge) appendCSVRow(`${tag}${num}(短辺)`, b.shortEdge);
+            if (b.center)    appendCSVRow(`${tag}${num}(中心)`, b.center, true);
+            if (b.short1)    appendCSVRow(`${tag}${num}(短辺1)`, b.short1, true);
+            if (b.short2)    appendCSVRow(`${tag}${num}(短辺2)`, b.short2, true);
+            if (b.long1)     appendCSVRow(`${tag}${num}(長辺1)`, b.long1, true);
+            if (b.long2)     appendCSVRow(`${tag}${num}(長辺2)`, b.long2, true);
+            if (b.longEdge)  appendCSVRow(`${tag}${num}(長辺)`, b.longEdge, true);
+            if (b.shortEdge) appendCSVRow(`${tag}${num}(短辺)`, b.shortEdge, true);
           });
         }
       });
@@ -742,24 +749,29 @@
         const distVal = calculatedDist !== null ? `${calculatedDist}m` : '';
         const officialVal = c.officialDist ? `${c.officialDist}m` : '';
 
-        const appendTextRow = (typeLabel, pt) => {
+        const appendTextRow = (typeLabel, pt, isBunker = false) => {
           if (!pt) return;
-          text += `${name}\t${id}\tPar${c.par}\t${officialVal}\t${distVal}\t${typeLabel}\t${toDMS(pt.lat, true)}\t${toDMS(pt.lng, false)}\t±${pt.acc}m\n`;
+          const parVal = isBunker ? '' : `Par${c.par}`;
+          const offVal = isBunker ? '' : officialVal;
+          const calVal = isBunker ? '' : distVal;
+          text += `${name}\t${id}\t${parVal}\t${offVal}\t${calVal}\t${typeLabel}\t${toDMS(pt.lat, true)}\t${toDMS(pt.lng, false)}\t±${pt.acc}m\n`;
         };
+
         appendTextRow('TEE', c.tee);
         c.waypoints.forEach((wp, idx) => appendTextRow(`中間${idx + 1}`, wp));
         appendTextRow('CUP', c.cup);
+
         if (c.bunkers) {
           c.bunkers.forEach((b, bIdx) => {
             const tag = b.isGrass ? 'GB' : 'BK';
             const num = bIdx + 1;
-            if (b.center) appendTextRow(`${tag}${num}(中心)`, b.center);
-            if (b.short1) appendTextRow(`${tag}${num}(短辺1)`, b.short1);
-            if (b.short2) appendTextRow(`${tag}${num}(短辺2)`, b.short2);
-            if (b.long1)  appendTextRow(`${tag}${num}(長辺1)`, b.long1);
-            if (b.long2)  appendTextRow(`${tag}${num}(長辺2)`, b.long2);
-            if (b.longEdge)  appendTextRow(`${tag}${num}(長辺)`, b.longEdge);
-            if (b.shortEdge) appendTextRow(`${tag}${num}(短辺)`, b.shortEdge);
+            if (b.center)    appendTextRow(`${tag}${num}(中心)`, b.center, true);
+            if (b.short1)    appendTextRow(`${tag}${num}(短辺1)`, b.short1, true);
+            if (b.short2)    appendTextRow(`${tag}${num}(短辺2)`, b.short2, true);
+            if (b.long1)     appendTextRow(`${tag}${num}(長辺1)`, b.long1, true);
+            if (b.long2)     appendTextRow(`${tag}${num}(長辺2)`, b.long2, true);
+            if (b.longEdge)  appendTextRow(`${tag}${num}(長辺)`, b.longEdge, true);
+            if (b.shortEdge) appendTextRow(`${tag}${num}(短辺)`, b.shortEdge, true);
           });
         }
       });
