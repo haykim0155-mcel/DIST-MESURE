@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>パークゴルフ データ収集＆計測</title>
 
   <!-- Leaflet 本体 (地図表示用) -->
@@ -11,86 +11,98 @@
 
   <style>
     * { box-sizing: border-box; }
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 12px; background-color: #f4f6f8; color: #333; display: flex; flex-direction: column; min-height: 100vh; }
-    h1 { font-size: 1.1rem; margin: 0 0 10px 0; text-align: center; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 8px; background-color: #f4f6f8; color: #333; display: flex; flex-direction: column; min-height: 100vh; }
+    h1 { font-size: 1.0rem; margin: 0 0 6px 0; text-align: center; }
     
-    .park-name-container { background: white; padding: 10px 12px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-    .park-name-container label { font-weight: bold; font-size: 0.9rem; white-space: nowrap; }
-    .park-name-container input[type="text"] { flex: 1; min-width: 150px; padding: 8px; font-size: 0.95rem; border: 1px solid #ccc; border-radius: 6px; }
-    .btn-load-csv { background: #0b57d0; color: white; border: none; padding: 8px 12px; border-radius: 6px; font-size: 0.85rem; font-weight: bold; cursor: pointer; white-space: nowrap; }
+    /* ５：スライドエリア内に格納するゴルフ場名ヘッダー */
+    .park-name-container { background: white; padding: 8px 10px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .park-name-container label { font-weight: bold; font-size: 0.85rem; white-space: nowrap; }
+    .park-name-container input[type="text"] { flex: 1; min-width: 130px; padding: 6px; font-size: 0.9rem; border: 1px solid #ccc; border-radius: 6px; }
+    .btn-load-csv { background: #0b57d0; color: white; border: none; padding: 6px 10px; border-radius: 6px; font-size: 0.8rem; font-weight: bold; cursor: pointer; white-space: nowrap; }
 
-    /* コースリストエリア */
-    .course-list { display: flex; flex-direction: column; gap: 10px; max-height: 45vh; overflow-y: auto; padding-right: 2px; }
-    .course-card { background: white; padding: 10px 12px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: flex; flex-direction: column; gap: 8px; }
+    /* コースリストエリア (ゴルフ場名も一緒にスライド) */
+    .course-list { display: flex; flex-direction: column; gap: 8px; max-height: 48vh; overflow-y: auto; padding-right: 2px; }
+    .course-card { background: white; padding: 8px 10px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: flex; flex-direction: column; gap: 6px; }
     .row-main { display: flex; align-items: center; gap: 6px; }
-    .course-name { font-weight: bold; font-size: 1.1rem; width: 36px; flex-shrink: 0; }
-    .btn-group { display: flex; gap: 4px; flex-grow: 1; align-items: center; }
-    button.action-btn { padding: 6px 2px; font-size: 0.75rem; border: 1px solid #ccc; border-radius: 6px; background: #fff; cursor: pointer; flex: 1; touch-action: manipulation; }
+    .course-name { font-weight: bold; font-size: 1.0rem; width: 34px; flex-shrink: 0; }
+    .btn-group { display: flex; gap: 3px; flex-grow: 1; align-items: center; }
+    button.action-btn { padding: 5px 2px; font-size: 0.72rem; border: 1px solid #ccc; border-radius: 5px; background: #fff; cursor: pointer; flex: 1; touch-action: manipulation; }
     button.action-btn:active { background: #e0e0e0; }
     button.action-btn.done { background: #e6f4ea; border-color: #34a853; color: #137333; font-weight: bold; }
-    .btn-clear-wp { background: #fce8e6; border: 1px solid #fad2cf; color: #c5221f; border-radius: 50%; width: 20px; height: 20px; font-size: 11px; padding: 0; cursor: pointer; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+    .btn-clear-wp { background: #fce8e6; border: 1px solid #fad2cf; color: #c5221f; border-radius: 50%; width: 18px; height: 18px; font-size: 10px; padding: 0; cursor: pointer; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
     button.btn-bunker { background: #fef7e0; border-color: #fbbc04; color: #b06000; }
     button.btn-bunker.has-data { background: #feefc3; font-weight: bold; }
-    .distance-display { width: 75px; text-align: center; font-weight: bold; font-size: 0.95rem; color: #1a73e8; background-color: #e8f0fe; border: 1.5px solid #1a73e8; border-radius: 6px; padding: 4px 2px; flex-shrink: 0; }
+    .distance-display { width: 70px; text-align: center; font-weight: bold; font-size: 0.9rem; color: #1a73e8; background-color: #e8f0fe; border: 1.5px solid #1a73e8; border-radius: 5px; padding: 3px 2px; flex-shrink: 0; }
     
-    .row-sub { display: flex; align-items: center; gap: 8px; background: #fafafa; padding: 6px 8px; border-radius: 6px; font-size: 0.82rem; flex-wrap: wrap; }
-    .sub-item { display: flex; align-items: center; gap: 4px; }
-    .sub-item input[type="number"] { width: 50px; padding: 4px; font-size: 0.85rem; text-align: center; border: 1px solid #ccc; border-radius: 4px; }
+    .row-sub { display: flex; align-items: center; gap: 6px; background: #fafafa; padding: 4px 6px; border-radius: 5px; font-size: 0.8rem; flex-wrap: wrap; }
+    .sub-item { display: flex; align-items: center; gap: 3px; }
+    .sub-item input[type="number"] { width: 45px; padding: 3px; font-size: 0.82rem; text-align: center; border: 1px solid #ccc; border-radius: 4px; }
     
-    /* 1. 距離補正（±1m）ボタン */
-    .btn-adj { padding: 3px 6px; font-size: 0.75rem; border: 1px solid #1a73e8; background: #e8f0fe; color: #1a73e8; border-radius: 4px; font-weight: bold; cursor: pointer; }
+    .btn-adj { padding: 2px 5px; font-size: 0.72rem; border: 1px solid #1a73e8; background: #e8f0fe; color: #1a73e8; border-radius: 3px; font-weight: bold; cursor: pointer; }
     .btn-adj:active { background: #1a73e8; color: white; }
 
-    .par-selector { display: flex; gap: 3px; }
-    .par-btn { padding: 3px 7px; border: 1px solid #ccc; background: white; border-radius: 4px; cursor: pointer; font-size: 0.8rem; }
+    .par-selector { display: flex; gap: 2px; }
+    .par-btn { padding: 2px 6px; border: 1px solid #ccc; background: white; border-radius: 3px; cursor: pointer; font-size: 0.78rem; }
     .par-btn.active { background: #1a73e8; color: white; border-color: #1a73e8; font-weight: bold; }
     
-    .bottom-actions { margin: 10px 0; display: flex; gap: 8px; }
-    .btn-primary { background: #1a73e8; color: white; border: none; font-weight: bold; padding: 10px; border-radius: 6px; flex: 1; cursor: pointer; }
-    .btn-danger { background: #dc3545; color: white; border: none; padding: 10px; border-radius: 6px; flex: 0.35; cursor: pointer; }
+    .bottom-actions { margin: 8px 0; display: flex; gap: 6px; }
+    .btn-primary { background: #1a73e8; color: white; border: none; font-weight: bold; padding: 8px; border-radius: 6px; flex: 1; cursor: pointer; font-size: 0.85rem; }
+    .btn-danger { background: #dc3545; color: white; border: none; padding: 8px; border-radius: 6px; flex: 0.35; cursor: pointer; font-size: 0.85rem; }
 
-    /* 下半分のリアルタイム地図スタイル */
-    #mapContainer { height: 40vh; width: 100%; border-radius: 8px; border: 2px solid #ccc; overflow: hidden; box-shadow: 0 2px 6px rgba(0,0,0,0.15); margin-top: 4px; position: relative; z-index: 1; }
+    /* 地図エリア */
+    #mapContainer { height: 38vh; width: 100%; border-radius: 8px; border: 2px solid #ccc; overflow: hidden; box-shadow: 0 2px 6px rgba(0,0,0,0.15); margin-top: 2px; position: relative; z-index: 1; }
     #previewMap { width: 100%; height: 100%; }
 
-    /* 2. ズーム時に常時表示するテキストラベル（ポップアップに代わる表示） */
-    .pin-label {
-      font-weight: bold; font-size: 11px; color: #000;
-      text-shadow: 1.5px 1.5px 0 #fff, -1.5px -1.5px 0 #fff, 1.5px -1.5px 0 #fff, -1.5px 1.5px 0 #fff;
-      white-space: nowrap; pointer-events: none;
+    /* ３：背景なしの黒文字ラベル (ピンの少し上に表示) */
+    .pin-label-plain {
+      background: none !important;
+      border: none !important;
+      box-shadow: none !important;
+      font-weight: bold;
+      font-size: 11px;
+      color: #000;
+      text-shadow: 
+        1.5px 1.5px 0 #fff, -1.5px -1.5px 0 #fff,
+        1.5px -1.5px 0 #fff, -1.5px 1.5px 0 #fff,
+        0 1.5px 0 #fff, 0 -1.5px 0 #fff;
+      white-space: nowrap;
+      pointer-events: none;
+      padding: 0 !important;
     }
 
     .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 9999; }
-    .modal-content { background: white; width: 95%; max-width: 650px; max-height: 85vh; border-radius: 12px; padding: 16px; display: flex; flex-direction: column; }
-    .table-container { overflow-y: auto; margin: 12px 0; }
-    table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
-    th, td { border: 1px solid #ddd; padding: 6px 4px; text-align: left; }
+    .modal-content { background: white; width: 95%; max-width: 650px; max-height: 85vh; border-radius: 12px; padding: 14px; display: flex; flex-direction: column; }
+    .table-container { overflow-y: auto; margin: 10px 0; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+    th, td { border: 1px solid #ddd; padding: 5px 3px; text-align: left; }
     th { background: #f0f0f0; }
-    .bunker-step { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; padding: 6px 8px; background: #f8f9fa; border-radius: 6px; }
-    .modal-actions { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
-    .btn-secondary { background: #5f6368; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; flex: 1; }
-    .btn-success { background: #188038; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; flex: 1; }
+    .bunker-step { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; padding: 5px 6px; background: #f8f9fa; border-radius: 5px; }
+    .modal-actions { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+    .btn-secondary { background: #5f6368; color: white; border: none; padding: 8px 10px; border-radius: 5px; cursor: pointer; font-size: 0.82rem; flex: 1; }
+    .btn-success { background: #188038; color: white; border: none; padding: 8px 10px; border-radius: 5px; cursor: pointer; font-size: 0.82rem; flex: 1; }
   </style>
 </head>
 <body>
 
   <h1>パークゴルフ データ収集＆計測</h1>
 
-  <div class="park-name-container">
-    <label for="parkName">ゴルフ場名:</label>
-    <input type="text" id="parkName" placeholder="例: 帯広の森運動公園PG" onchange="saveParkName()" />
-    <button class="btn-load-csv" onclick="document.getElementById('csvLoadInput').click()">CSV読込</button>
-    <input type="file" id="csvLoadInput" accept=".csv" style="display:none;" onchange="loadCSVFile(event)" />
+  <!-- ５：スクロールエリア内にゴルフ場名・CSV読込とコースカードをまとめて格納 -->
+  <div class="course-list" id="courseList">
+    <div class="park-name-container">
+      <label for="parkName">ゴルフ場名:</label>
+      <input type="text" id="parkName" placeholder="例: 帯広の森運動公園PG" onchange="saveParkName()" />
+      <button class="btn-load-csv" onclick="document.getElementById('csvLoadInput').click()">CSV読込</button>
+      <input type="file" id="csvLoadInput" accept=".csv" style="display:none;" onchange="loadCSVFile(event)" />
+    </div>
+    <!-- コースカード群はJSでここへ挿入 -->
   </div>
-
-  <div class="course-list" id="courseList"></div>
 
   <div class="bottom-actions">
     <button class="btn-primary" onclick="openModal()">全データ一覧を表示</button>
     <button class="btn-danger" onclick="resetAllData()">リセット</button>
   </div>
 
-  <!-- 下半分のリアルタイム地図プレビュー -->
+  <!-- 下半分のリアルタイム地図 -->
   <div id="mapContainer">
     <div id="previewMap"></div>
   </div>
@@ -98,7 +110,7 @@
   <!-- モーダル一覧 -->
   <div class="modal" id="modal">
     <div class="modal-content">
-      <h2 style="font-size:1.1rem; margin:0;" id="modalTitle">取得データ一覧</h2>
+      <h2 style="font-size:1.0rem; margin:0;" id="modalTitle">取得データ一覧</h2>
       <div class="table-container">
         <table>
           <thead>
@@ -128,20 +140,20 @@
   <!-- バンカー計測モーダル -->
   <div class="modal" id="bunkerModal">
     <div class="modal-content">
-      <h2 style="font-size:1.1rem; margin:0 0 8px 0;" id="bunkerModalTitle">バンカー位置の計測</h2>
+      <h2 style="font-size:1.0rem; margin:0 0 6px 0;" id="bunkerModalTitle">バンカー位置の計測</h2>
       
       <div id="bunkerStepContainer"></div>
 
-      <div style="margin-top:10px; display:flex; align-items:center; gap:6px; background:#eaf5ea; padding:8px; border-radius:6px; border:1px solid #c8e6c9;">
+      <div style="margin-top:8px; display:flex; align-items:center; gap:6px; background:#eaf5ea; padding:6px; border-radius:5px; border:1px solid #c8e6c9;">
         <input type="checkbox" id="isGrassBunker" style="transform:scale(1.2);" onchange="toggleGrassBunker(this.checked)" />
-        <label for="isGrassBunker" style="font-weight:bold; font-size:0.85rem; color:#1b5e20; cursor:pointer;">グラスバンカー（GB）として登録</label>
+        <label for="isGrassBunker" style="font-weight:bold; font-size:0.8rem; color:#1b5e20; cursor:pointer;">グラスバンカー（GB）として登録</label>
       </div>
 
-      <div style="margin-top: 8px; text-align: right;">
-        <span id="bunkerCountLabel" style="font-size:0.85rem; font-weight:bold; color:#b06000;"></span>
+      <div style="margin-top: 6px; text-align: right;">
+        <span id="bunkerCountLabel" style="font-size:0.8rem; font-weight:bold; color:#b06000;"></span>
       </div>
 
-      <div class="modal-actions" style="margin-top:12px;">
+      <div class="modal-actions" style="margin-top:10px;">
         <button class="btn-primary" style="background:#fbbc04; color:#333;" onclick="saveCurrentBunkerAndNext()">次のバンカーを追加</button>
         <button class="btn-secondary" style="background:#80868b;" onclick="closeBunkerModal()">完了して閉じる</button>
       </div>
@@ -162,12 +174,11 @@
 
     document.getElementById('parkName').value = parkName;
 
+    // ２：初期状態では Par を null (未選択) にする
     courseIds.forEach(id => {
       if (!coursesData[id]) {
-        coursesData[id] = { par: 3, officialDist: '', tee: null, waypoints: [], cup: null, bunkers: [] };
+        coursesData[id] = { par: null, officialDist: '', tee: null, waypoints: [], cup: null, bunkers: [] };
       } else {
-        if (coursesData[id].par === undefined) coursesData[id].par = 3;
-        if (coursesData[id].officialDist === undefined) coursesData[id].officialDist = '';
         if (!coursesData[id].bunkers) coursesData[id].bunkers = [];
       }
     });
@@ -182,12 +193,11 @@
 
     const mapLayerGroup = L.layerGroup().addTo(previewMap);
 
-    // ズーム変更時にラベル表示を更新
     previewMap.on('zoomend', function() {
       updatePreviewMap();
     });
 
-    // 2. ドラッグ可能なピン＋ズーム常時表示用ラベル（ポップアップ無効化）
+    // ３：ドラッグ可能なピン＋背景なし黒文字ラベル（ズームレベル20以上でピンの少し上に表示）
     function createDraggableMarker(pt, labelText, options, onDragEndCallback) {
       const marker = L.marker([pt.lat, pt.lng], {
         draggable: true,
@@ -199,13 +209,13 @@
         })
       });
 
-      // ズームレベル18以上のときだけテキストラベルを表示（ポップアップは廃止）
-      if (previewMap.getZoom() >= 18 && labelText) {
+      // さらに2段階拡大（ズームレベル20以上）した時だけ、背景なし黒文字ラベルを少し上に常時表示
+      if (previewMap.getZoom() >= 20 && labelText) {
         marker.bindTooltip(labelText, {
           permanent: true,
-          direction: 'right',
-          offset: [8, 0],
-          className: 'pin-label'
+          direction: 'top',
+          offset: [0, -10],
+          className: 'pin-label-plain'
         });
       }
 
@@ -229,34 +239,23 @@
         pts.push(...c.waypoints);
         if (c.cup) pts.push(c.cup);
 
-        // コースライン
         if (pts.length >= 2) {
           const latlngs = pts.map(p => [p.lat, p.lng]);
           L.polyline(latlngs, { color: '#00ffcc', weight: 3, opacity: 0.8 }).addTo(mapLayerGroup);
         }
 
-        // TEEピン
         if (c.tee) {
-          createDraggableMarker(c.tee, `${id} TEE`, {
-            color: '#006400', fillColor: '#2e8b57'
-          }, () => saveData()).addTo(mapLayerGroup);
+          createDraggableMarker(c.tee, `${id} TEE`, { color: '#006400', fillColor: '#2e8b57' }, () => saveData()).addTo(mapLayerGroup);
         }
 
-        // CUPピン
         if (c.cup) {
-          createDraggableMarker(c.cup, `${id} CUP`, {
-            color: '#dc3545', fillColor: '#ff4d4d'
-          }, () => saveData()).addTo(mapLayerGroup);
+          createDraggableMarker(c.cup, `${id} CUP`, { color: '#dc3545', fillColor: '#ff4d4d' }, () => saveData()).addTo(mapLayerGroup);
         }
 
-        // 中間点ピン
         c.waypoints.forEach((wp, idx) => {
-          createDraggableMarker(wp, `${id} 中間${idx + 1}`, {
-            color: '#1a73e8', fillColor: '#66a3ff'
-          }, () => saveData()).addTo(mapLayerGroup);
+          createDraggableMarker(wp, `${id} 中間${idx + 1}`, { color: '#1a73e8', fillColor: '#66a3ff' }, () => saveData()).addTo(mapLayerGroup);
         });
 
-        // バンカーピン
         if (c.bunkers) {
           c.bunkers.forEach((b, bIdx) => {
             const tag = b.isGrass ? 'GB' : 'BK';
@@ -264,9 +263,7 @@
 
             const checkAndAddBunkerPt = (pt, label) => {
               if (pt) {
-                createDraggableMarker(pt, `${id} ${tag}${bIdx + 1}(${label})`, {
-                  color: color, fillColor: color
-                }, () => saveData()).addTo(mapLayerGroup);
+                createDraggableMarker(pt, `${id} ${tag}${bIdx + 1}(${label})`, { color: color, fillColor: color }, () => saveData()).addTo(mapLayerGroup);
               }
             };
 
@@ -286,7 +283,6 @@
       }
     }
 
-    // 1. TEE〜CUP 直線上の距離1m前後スライド調整関数
     function adjustDistanceByMeter(courseId, deltaMeters) {
       const c = coursesData[courseId];
       if (!c.cup) {
@@ -294,7 +290,6 @@
         return;
       }
 
-      // 基準点（中間点があれば最後の中間点、なければTEE）
       let basePoint = null;
       if (c.waypoints.length > 0) {
         basePoint = c.waypoints[c.waypoints.length - 1];
@@ -307,9 +302,7 @@
         return;
       }
 
-      // 方位角(bearing)を計算
       const bearing = getBearing(basePoint, c.cup);
-      // 新しいCUP座標を前後にシフト
       const newCupPos = getOffsetLatLng(c.cup, deltaMeters, bearing);
 
       c.cup.lat = newCupPos.lat;
@@ -352,7 +345,7 @@
     }
 
     function promptCustomPar(courseId) {
-      const current = coursesData[courseId].par;
+      const current = coursesData[courseId].par || '';
       const input = prompt(`${courseId} のParを入力 (1〜7):`, current);
       if (input !== null) {
         const num = parseInt(input, 10);
@@ -498,7 +491,7 @@
 
         loadedParkName = parts[0];
         const courseId = parts[1];
-        const par = parseInt(parts[2], 10) || 3;
+        const par = parts[2] ? parseInt(parts[2], 10) : null;
         const officialDist = parts[3] || '';
         const type = parts[5];
         const lat = parseCoordinate(parts[6]);
@@ -511,7 +504,7 @@
         const pt = { lat, lng, acc };
         if (!firstPoint) firstPoint = pt;
 
-        coursesData[courseId].par = par;
+        if (par !== null) coursesData[courseId].par = par;
         if (officialDist) coursesData[courseId].officialDist = officialDist;
 
         if (type === 'TEE') {
@@ -559,7 +552,16 @@
 
     function render() {
       const container = document.getElementById('courseList');
-      container.innerHTML = '';
+      // ５：ゴルフ場名ヘッダーを残したままカード群を更新
+      const nameHeaderHtml = `
+        <div class="park-name-container">
+          <label for="parkName">ゴルフ場名:</label>
+          <input type="text" id="parkName" value="${parkName}" placeholder="例: 帯広の森運動公園PG" onchange="saveParkName()" />
+          <button class="btn-load-csv" onclick="document.getElementById('csvLoadInput').click()">CSV読込</button>
+          <input type="file" id="csvLoadInput" accept=".csv" style="display:none;" onchange="loadCSVFile(event)" />
+        </div>
+      `;
+      container.innerHTML = nameHeaderHtml;
 
       courseIds.forEach(id => {
         const c = coursesData[id];
@@ -574,11 +576,13 @@
         const bunkerClass = bunkerCount > 0 ? 'btn-bunker has-data' : 'btn-bunker';
         const bunkerLabel = bunkerCount > 0 ? `BK(${bunkerCount})` : '+BK';
 
+        // ２：Par未設定時はどのボタンもONにしない（未設定表示）
         const isPar3 = c.par === 3 ? 'active' : '';
         const isPar4 = c.par === 4 ? 'active' : '';
         const isPar5 = c.par === 5 ? 'active' : '';
-        const isOther = (c.par !== 3 && c.par !== 4 && c.par !== 5) ? `active` : '';
-        const otherLabel = (c.par !== 3 && c.par !== 4 && c.par !== 5) ? `Par ${c.par}` : '他';
+        const isOther = (c.par !== null && c.par !== 3 && c.par !== 4 && c.par !== 5) ? `active` : '';
+        const otherLabel = (c.par !== null && c.par !== 3 && c.par !== 4 && c.par !== 5) ? `Par ${c.par}` : '他';
+        const parStatusText = c.par === null ? '<span style="color:#d93025; font-weight:bold; margin-right:4px;">未設定</span>' : '';
 
         card.innerHTML = `
           <div class="row-main">
@@ -608,11 +612,11 @@
               <span>看板:</span>
               <input type="number" placeholder="m" value="${c.officialDist}" onchange="updateOfficialDist('${id}', this.value)" />
               <span>m</span>
-              <!-- 1. 距離補正ボタン [-1m] [+1m] -->
               <button class="btn-adj" onclick="adjustDistanceByMeter('${id}', -1)">-1m</button>
               <button class="btn-adj" onclick="adjustDistanceByMeter('${id}', 1)">+1m</button>
             </div>
             <div class="sub-item" style="margin-left: auto;">
+              ${parStatusText}
               <span>Par:</span>
               <div class="par-selector">
                 <button class="par-btn ${isPar3}" onclick="updatePar('${id}', 3)">3</button>
@@ -714,13 +718,14 @@
         const calculatedDist = calculateTotalDistance(c);
         const distStr = calculatedDist !== null ? `${calculatedDist}m` : '-';
         const officialStr = c.officialDist ? `${c.officialDist}m` : '-';
+        const parStr = c.par !== null ? `Par${c.par}` : '未設定';
 
         const addRow = (typeLabel, pt, isBunker = false) => {
           if (!pt) return;
           const tr = document.createElement('tr');
           tr.innerHTML = `
             <td>${id}</td>
-            <td>${isBunker ? '-' : `Par${c.par}`}</td>
+            <td>${isBunker ? '-' : parStr}</td>
             <td>${isBunker ? '-' : officialStr}</td>
             <td>${isBunker ? '-' : distStr}</td>
             <td>${typeLabel}</td>
@@ -757,6 +762,7 @@
       document.getElementById('modal').style.display = 'none';
     }
 
+    // １：iPhoneでの保存場所選択のため、Web Share API (共有ダイアログ) を優先呼び出し
     async function downloadCSV() {
       let csvStr = "\uFEFFゴルフ場名,コース,Par,看板距離(m),計測距離(m),種別,緯度(DMS),経度(DMS),精度\n";
       const name = parkName || '未設定';
@@ -766,13 +772,14 @@
         const calculatedDist = calculateTotalDistance(c);
         const distVal = calculatedDist !== null ? calculatedDist : '';
         const officialVal = c.officialDist || '';
+        const parVal = c.par !== null ? c.par : '';
 
         const appendCSVRow = (typeLabel, pt, isBunker = false) => {
           if (!pt) return;
-          const parVal = isBunker ? '' : c.par;
+          const pVal = isBunker ? '' : parVal;
           const offVal = isBunker ? '' : officialVal;
           const calVal = isBunker ? '' : distVal;
-          csvStr += `"${name}",${id},${parVal},"${offVal}","${calVal}",${typeLabel},"${toDMS(pt.lat, true)}","${toDMS(pt.lng, false)}",±${pt.acc}m\n`;
+          csvStr += `"${name}",${id},${pVal},"${offVal}","${calVal}",${typeLabel},"${toDMS(pt.lat, true)}","${toDMS(pt.lng, false)}",±${pt.acc}m\n`;
         };
 
         appendCSVRow('TEE', c.tee);
@@ -797,6 +804,17 @@
       const fileName = parkName ? `PGデータ_${parkName}_${new Date().toISOString().slice(0,10)}.csv` : `PGデータ_${new Date().toISOString().slice(0,10)}.csv`;
       const blob = new Blob([csvStr], { type: 'text/csv;charset=utf-8;' });
 
+      // iOS共有シートを最優先（「ファイルに保存」等の選択肢を出す）
+      if (navigator.share) {
+        const file = new File([blob], fileName, { type: 'text/csv' });
+        try {
+          await navigator.share({ files: [file], title: fileName });
+          return;
+        } catch (e) {
+          // キャンセル時などはフォールバックへ
+        }
+      }
+
       const link = document.createElement("a");
       link.href = URL.createObjectURL(blob);
       link.download = fileName;
@@ -816,13 +834,14 @@
         const calculatedDist = calculateTotalDistance(c);
         const distVal = calculatedDist !== null ? `${calculatedDist}m` : '';
         const officialVal = c.officialDist ? `${c.officialDist}m` : '';
+        const parVal = c.par !== null ? `Par${c.par}` : '未設定';
 
         const appendTextRow = (typeLabel, pt, isBunker = false) => {
           if (!pt) return;
-          const parVal = isBunker ? '' : `Par${c.par}`;
+          const pVal = isBunker ? '' : parVal;
           const offVal = isBunker ? '' : officialVal;
           const calVal = isBunker ? '' : distVal;
-          text += `${name}\t${id}\t${parVal}\t${offVal}\t${calVal}\t${typeLabel}\t${toDMS(pt.lat, true)}\t${toDMS(pt.lng, false)}\t±${pt.acc}m\n`;
+          text += `${name}\t${id}\t${pVal}\t${offVal}\t${calVal}\t${typeLabel}\t${toDMS(pt.lat, true)}\t${toDMS(pt.lng, false)}\t±${pt.acc}m\n`;
         };
 
         appendTextRow('TEE', c.tee);
@@ -857,7 +876,7 @@
         parkName = '';
         lastCapturedPoint = null;
         courseIds.forEach(id => {
-          coursesData[id] = { par: 3, officialDist: '', tee: null, waypoints: [], cup: null, bunkers: [] };
+          coursesData[id] = { par: null, officialDist: '', tee: null, waypoints: [], cup: null, bunkers: [] };
         });
         saveData();
       }
